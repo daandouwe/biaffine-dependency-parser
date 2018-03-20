@@ -1,8 +1,6 @@
 import torch
 from torch import nn
-from torch.autograd import Variable
 from torch.nn import init
-import numpy as np
 
 class BiAffine(nn.Module):
 
