@@ -1,5 +1,6 @@
 img/*
 csv/*
+models/*
 __pychache__/*
 reading/*
 vocab/*
