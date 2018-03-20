@@ -216,5 +216,3 @@ write(train_loss, train_acc, val_acc)
 arc_val_acc, lab_val_acc = evaluate(model, corpus)
 if arc_val_acc > best_val_acc:
     save(model)
-    best_val_acc = arc_val_acc
-    best_epoch = epoch
