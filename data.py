@@ -5,8 +5,6 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 
-np.random.seed(42)
-
 PAD_TOKEN = '<pad>'
 PAD_TAG = 'PAD'
 PAD_LABEL = '_pad_'

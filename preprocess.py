@@ -2,8 +2,6 @@ import numpy as np
 from collections import Counter
 import unicodedata
 
-np.random.seed(42)
-
 def is_number(s):
     s = s.replace(',', '') # 10,000 -> 10000
     s = s.replace(':', '') # 5:30 -> 530
