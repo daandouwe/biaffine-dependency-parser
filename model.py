@@ -27,11 +27,12 @@ class BiAffineParser(nn.Module):
                             dropout=lstm_dropout, bidirectional=True)
 
         # Arc MLPs
-        self.arc_mlp_h = MLP(lstm_hidden*2, mlp_arc_hidden, 2, 'ReLU', mlp_dropout)
-        self.arc_mlp_d = MLP(lstm_hidden*2, mlp_arc_hidden, 2, 'ReLU', mlp_dropout)
+        mlp_input = 2*lstm_hidden
+        self.arc_mlp_h = MLP(mlp_input, mlp_arc_hidden, 2, 'ReLU', mlp_dropout)
+        self.arc_mlp_d = MLP(mlp_input, mlp_arc_hidden, 2, 'ReLU', mlp_dropout)
         # Label MLPs
-        self.lab_mlp_h = MLP(lstm_hidden*2, mlp_lab_hidden, 2, 'ReLU', mlp_dropout)
-        self.lab_mlp_d = MLP(lstm_hidden*2, mlp_lab_hidden, 2, 'ReLU', mlp_dropout)
+        self.lab_mlp_h = MLP(mlp_input, mlp_lab_hidden, 2, 'ReLU', mlp_dropout)
+        self.lab_mlp_d = MLP(mlp_input, mlp_lab_hidden, 2, 'ReLU', mlp_dropout)
 
         # BiAffine layers
         self.arc_biaffine = BiAffine(mlp_arc_hidden, 1)

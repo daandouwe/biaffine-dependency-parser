@@ -164,17 +164,17 @@ def train(batch, alpha=1.):
 # Train!
 ######################################################################
 timer = Timer()
-n_batches = len(corpus.train.words) // batch_size
+n_batches = len(corpus.train.words) // args.batch_size
 train_loss, train_acc, val_acc, test_acc = [], [], [], []
 best_val_acc, best_epoch = 0, 0
 fig, ax = plt.subplots()
 try:
-    for epoch in range(1, epochs+1):
+    for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
         # Turn on dropout.
         model.train()
         # Get a new set of shuffled training batches.
-        train_batches = corpus.train.batches(batch_size, length_ordered=False)
+        train_batches = corpus.train.batches(args.batch_size, length_ordered=False)
         for step, batch in enumerate(train_batches, 1):
             words, tags, heads, labels = batch
             S_arc, S_lab, loss = train(batch)
@@ -187,8 +187,8 @@ try:
                       'Label accuracy {:.2f}% | {:.0f} sents/sec |'
                         ''.format(epoch, step, n_batches, np.mean(train_loss[-args.print_every:]),
                         100*arc_train_acc, 100*lab_train_acc,
-                        batch_size*args.print_every/timer.elapsed()), end='\r')
-            if step % plot_every == 0:
+                        args.batch_size*args.print_every/timer.elapsed()), end='\r')
+            if step % args.plot_every == 0:
                 plot(corpus, model, fig, ax, step)
         # Evaluate model on validation set.
         arc_val_acc, lab_val_acc = evaluate(model, corpus)

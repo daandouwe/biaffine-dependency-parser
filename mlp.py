@@ -1,6 +1,8 @@
 """
 Source: https://github.com/EelcovdW/NLP1-project/blob/master/src/modules.py
 """
+import torch
+import torch.nn as nn
 
 class MLP(nn.Module):
     """

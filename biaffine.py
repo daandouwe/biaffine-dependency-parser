@@ -3,7 +3,9 @@ from torch import nn
 from torch.nn import init
 
 class BiAffine(nn.Module):
-
+    """
+    Biaffine attention layer.
+    """
     def __init__(self, input_dim, output_dim):
         super(BiAffine, self).__init__()
         self.input_dim = input_dim
