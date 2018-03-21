@@ -124,7 +124,7 @@ def evaluate(model, corpus):
     """
     # Turn on evaluation mode to disable dropout.
     model.eval()
-    dev_batches = corpus.dev.batches(batch_size, length_ordered=True)
+    dev_batches = corpus.dev.batches(args.batch_size, length_ordered=True)
     arc_acc, lab_acc = 0, 0
     for k, batch in enumerate(dev_batches, 1):
         words, tags, heads, labels = batch
@@ -138,7 +138,7 @@ def evaluate(model, corpus):
 ######################################################################
 # The training step.
 ######################################################################
-def train(batch, alpha=1.):
+def train(batch):
     """
     Performs one forward pass and parameter update.
     """
@@ -148,7 +148,7 @@ def train(batch, alpha=1.):
     # Compute loss.
     arc_loss = model.arc_loss(S_arc, heads)
     lab_loss = model.lab_loss(S_lab, heads, labels)
-    loss = arc_loss + alpha*lab_loss
+    loss = arc_loss + lab_loss
 
     # Update parameters.
     optimizer.zero_grad()
@@ -201,7 +201,7 @@ try:
         write(train_loss, train_acc, val_acc)
         # End epoch with some useful info in the terminal.
         print('-' * 89)
-        print('| End of epoch {} | Time: {:.2f}s | Valid accuracy {:.2f}% |'
+        print('| End of epoch {} | Time elapsed: {:.2f}s | Valid accuracy {:.2f}% |'
                 ' Best accuracy {:.2f}% (epoch {})'.format(epoch,
                 (time.time() - epoch_start_time), 100*arc_val_acc, 100*best_val_acc, best_epoch))
         print('-' * 89)

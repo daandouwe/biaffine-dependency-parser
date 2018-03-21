@@ -4,3 +4,4 @@ models/*
 __pychache__/*
 reading/*
 vocab/*
+*.ipynb
