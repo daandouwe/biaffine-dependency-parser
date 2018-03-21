@@ -7,3 +7,5 @@ vocab/*
 *.ipynb
 *.txt
 *.conll
+*.pl
+
