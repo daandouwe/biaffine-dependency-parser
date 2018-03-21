@@ -10,4 +10,5 @@ A PyTorch implementation of the neural dependency parser described in [Deep Biaf
 * Perfom some ablation experiments.
 * Make it CUDA.
 * Work on character-level embedding of words (CNN or LSTM).
-* Try with different RNN cell (GRU, RAN). 
+* Try with different RNN cell (GRU, RAN).
+* Try with CNN instead of LSTM for context embeddings. 
