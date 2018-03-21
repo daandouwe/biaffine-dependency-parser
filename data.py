@@ -161,17 +161,17 @@ class Data:
         self.labels = [self.labels[i] for i in new_order]
         self.lengths = [self.lengths[i] for i in new_order]
 
-    def batches(self, batch_size, length_ordered=False):
+    def batches(self, batch_size, shuffle=True, length_ordered=False):
         """
         An iterator over batches.
         """
-        if length_ordered:
-            self.order()
-        else:
-            self.shuffle()
         n = len(self.words)
         batch_order = list(range(0, n, batch_size))
-        np.random.shuffle(batch_order)
+        if shuffle:
+            self.shuffle()
+            np.random.shuffle(batch_order)
+        if length_ordered:
+            self.order()
         for i in batch_order:
             words = pad(self.words[i:i+batch_size])
             tags = pad(self.tags[i:i+batch_size])

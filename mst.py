@@ -1,12 +1,14 @@
+"""
+Source: https://github.com/chantera/biaffineparser/blob/master/utils.py
+"""
+
 import numpy as np
 from collections import defaultdict
 
-def mst(scores):
+def mst(scores, eps=1e-10):
     """
     Chu-Liu-Edmonds' algorithm for finding minimum spanning arborescence in graphs.
     Calculates the arborescence with node 0 as root.
-    Source: https://github.com/chantera/biaffineparser/blob/master/utils.py
-
     :param scores: `scores[i][j]` is the weight of edge from node `j` to node `i`.
     :returns an array containing the head node (node with edge pointing to current node) for each node,
              with head[0] fixed as 0
@@ -21,14 +23,14 @@ def mst(scores):
     if len(roots) < 1:
         root_scores = scores[tokens, 0]
         head_scores = scores[tokens, heads[tokens]]
-        new_root = tokens[np.argmax(root_scores / head_scores)]
+        new_root = tokens[np.argmax(root_scores / (head_scores + eps))]
         heads[new_root] = 0
     elif len(roots) > 1:
         root_scores = scores[roots, 0]
         scores[roots, 0] = 0
         new_heads = np.argmax(scores[roots][:, tokens], axis=1) + 1
         new_root = roots[np.argmin(
-            scores[roots, new_heads] / root_scores)]
+            scores[roots, new_heads] / (root_scores + eps))]
         heads[roots] = new_heads
         heads[new_root] = 0
 
@@ -52,7 +54,7 @@ def mst(scores):
         scores[np.repeat(cycle, len(non_heads)),
                np.repeat([non_heads], len(cycle), axis=0).flatten()] = 0
         new_heads = np.argmax(scores[cycle][:, tokens], axis=1) + 1
-        new_scores = scores[cycle, new_heads] / old_scores
+        new_scores = scores[cycle, new_heads] / (old_scores + eps)
         change = np.argmax(new_scores)
         changed_cycle = cycle[change]
         old_head = old_heads[change]

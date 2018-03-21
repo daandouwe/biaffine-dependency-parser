@@ -55,6 +55,20 @@ def predict(model, words, tags):
     labels = labels.data.numpy()
     return heads, labels
 
+def predict_batch(S_arc, S_lab, tags):
+    # Predict heads
+    S = S_arc.data.numpy()
+    heads = mst(S)
+
+    # Predict labels
+    select = torch.LongTensor(heads).unsqueeze(0).expand(S_lab.size(0), -1)
+    select = Variable(select)
+    selected = torch.gather(S_lab, 1, select.unsqueeze(1)).squeeze(1)
+    _, labels = selected.max(dim=0)
+    labels = labels.data.numpy()
+    return heads, labels
+
+
 if __name__ == '__main__':
 
     data_path = '../../stanford-ptb'

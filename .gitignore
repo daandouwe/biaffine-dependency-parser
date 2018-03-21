@@ -5,3 +5,5 @@ __pychache__/*
 reading/*
 vocab/*
 *.ipynb
+*.txt
+*.conll
