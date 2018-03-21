@@ -38,6 +38,45 @@ class CONLL:
                     print(i, w, '_', t, t, '_', h, l, '_', '_', sep='\t', file=f)
                 print(file=f)
 
+class Parser:
+    def __init__(self, corpus, model):
+        pass
+        self.model = model
+        self.corpus = corpus
+
+    def batch_eval(self, batch_size=128):
+        conll = CONLL(corpus.dictionary)
+        batches = self.corpus.dev.batches(batch_size, shuffle=False)
+        self.model.eval()
+        for i, batch in enumerate(batches):
+            print('Batch:', i, end='\r')
+            words, tags, heads, labels = batch
+            # Predict score matrices for the batch.
+            S_arc, S_lab = self.model(words, tags)
+            for i in range(words.size(0)):
+                # Find the sentence length.
+                n = (words[i] != PAD_INDEX).int().sum().data.numpy()[0]
+                # Predict for the selected parts that are the sentence.
+                heads_pred, labels_pred = predict_batch(S_arc[i, :n, :n],
+                                                        S_lab[i, :, :n, :n],
+                                                        tags[i, :n])
+                conll.add(words[i].data.numpy(), tags[i].data.numpy(),
+                            heads_pred, labels_pred)
+        return conll
+
+    def eval(self, corpus):
+        self.model.eval()
+        batches = self.corpus.dev.batches(1, shuffle=False)
+        conll = CONLL(corpus.dictionary)
+        for i, batch in enumerate(batches):
+            print('Batch:', i, end='\r')
+            words, tags, heads, labels = batch
+            heads_pred, labels_pred = predict(model, words, tags)
+            words = words[0].data.numpy()
+            tags = tags[0].data.numpy()
+            conll.add(words, tags, heads_pred, labels_pred)
+        return conll
+
 if __name__ == '__main__':
 
     data_path = '../../stanford-ptb'
@@ -48,38 +87,11 @@ if __name__ == '__main__':
     predict_path = 'predicted.conll'
     result_path = 'result.txt'
 
-    batch_eval = True
-
     corpus = Corpus(data_path=data_path, vocab_path=vocab_path)
     model = torch.load(model_path)
-    conll = CONLL(corpus.dictionary)
 
-    model.eval()
-    if batch_eval:
-        batch_size = 128
-        batches = corpus.dev.batches(batch_size, shuffle=False)
-        for i, batch in enumerate(batches):
-            print('Batch:', i, end='\r')
-            words, tags, heads, labels = batch
-            # Predict score matrices for the batch.
-            S_arc, S_lab = model(words, tags)
-            for i in range(words.size(0)):
-                # Find the sentence lenght.
-                n = (words[i] != PAD_INDEX).int().sum().data.numpy()[0]
-                # Predict for the selected parts that are the sentence.
-                heads_pred, labels_pred = predict_batch(S_arc[i, :n, :n],
-                                                        S_lab[i, :, :n, :n],
-                                                        tags[i, :n])
-                conll.add(words[i].data.numpy(), tags[i].data.numpy(),
-                            heads_pred, labels_pred)
-    else:
-        for i, batch in enumerate(batches):
-            print('Batch:', i, end='\r')
-            words, tags, heads, labels = batch
-            heads_pred, labels_pred = predict(model, words, tags)
-            words = words[0].data.numpy()
-            tags = tags[0].data.numpy()
-            conll.add(words, tags, heads_pred, labels_pred)
+    parser = Parser(corpus, model)
+    conll = parser.batch_eval()
 
     # Write the conll as text.
     conll.write(predict_path)

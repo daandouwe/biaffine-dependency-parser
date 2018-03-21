@@ -25,11 +25,11 @@ parser.add_argument('--word_emb_dim', type=int, default=100,
                     help='size of word embeddings')
 parser.add_argument('--tag_emb_dim', type=int, default=20,
                     help='size of tag embeddings')
-parser.add_argument('--lstm_hidden', type=int, default=200,
+parser.add_argument('--lstm_hidden', type=int, default=400,
                     help='number of hidden units in LSTM')
-parser.add_argument('--lstm_num_layers', type=int, default=1,
+parser.add_argument('--lstm_num_layers', type=int, default=3,
                     help='number of layers')
-parser.add_argument('--mlp_arc_hidden', type=int, default=100,
+parser.add_argument('--mlp_arc_hidden', type=int, default=500,
                     help='number of hidden units in arc MLP')
 parser.add_argument('--mlp_lab_hidden', type=int, default=100,
                     help='number of hidden units in label MLP')
@@ -37,7 +37,7 @@ parser.add_argument('--lr', type=float, default=2e-3,
                     help='initial learning rate')
 parser.add_argument('--epochs', type=int, default=10,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=128,
+parser.add_argument('--batch_size', type=int, default=32,
                     help='batch size')
 parser.add_argument('--dropout', type=float, default=0.33,
                     help='dropout applied to layers (0 = no dropout)')
