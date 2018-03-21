@@ -145,12 +145,6 @@ class Data:
         self.labels = [self.labels[i] for i in new_order]
         self.lengths = [self.lengths[i] for i in new_order]
 
-    def shuffle_blocks(self):
-        """
-        TODO: Shuffle the blocks of same-size sentences.
-        """
-        pass
-
     def shuffle(self):
         n = len(self.words)
         new_order = list(range(0, n))
@@ -179,26 +173,6 @@ class Data:
             labels = pad(self.labels[i:i+batch_size])
             yield words, tags, heads, labels
 
-    def batches_list(self, batch_size, length_ordered=False):
-        """
-        The batches as list.
-        """
-        if length_ordered:
-            self.order()
-        else:
-            self.shuffle()
-        n = len(self.words)
-        batch_order = list(range(0, n, batch_size))
-        np.random.shuffle(batch_order)
-        batches = []
-        for i in batch_order:
-            words = pad(self.words[i:i+batch_size])
-            tags = pad(self.tags[i:i+batch_size])
-            heads = pad(self.heads[i:i+batch_size])
-            labels = pad(self.labels[i:i+batch_size])
-            batches.append((words, tags, heads, labels))
-        return batches
-
 class Corpus:
     """
     A corpus of three datasets (train, development, and test) and a dictionary.
@@ -208,7 +182,6 @@ class Corpus:
         self.train = Data(os.path.join(data_path, "train-stanford-raw.conll"), self.dictionary)
         self.dev = Data(os.path.join(data_path, "dev-stanford-raw.conll"), self.dictionary)
         self.test = Data(os.path.join(data_path, "test-stanford-raw.conll"), self.dictionary)
-
 
 if __name__ == "__main__":
     # Example usage:

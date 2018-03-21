@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     data_path = '../../stanford-ptb'
     vocab_path = 'vocab/train'
-    model_path = 'models/model.pt'
+    model_path = 'models/trained/model.pt'
 
     gold_path = '../../stanford-ptb/dev-stanford-raw.conll'
     predict_path = 'predicted.conll'
@@ -59,11 +59,14 @@ if __name__ == '__main__':
         batch_size = 128
         batches = corpus.dev.batches(batch_size, shuffle=False)
         for i, batch in enumerate(batches):
-            print(i, end='\r')
+            print('Batch:', i, end='\r')
             words, tags, heads, labels = batch
+            # Predict score matrices for the batch.
             S_arc, S_lab = model(words, tags)
             for i in range(words.size(0)):
+                # Find the sentence lenght.
                 n = (words[i] != PAD_INDEX).int().sum().data.numpy()[0]
+                # Predict for the selected parts that are the sentence.
                 heads_pred, labels_pred = predict_batch(S_arc[i, :n, :n],
                                                         S_lab[i, :, :n, :n],
                                                         tags[i, :n])
@@ -71,7 +74,7 @@ if __name__ == '__main__':
                             heads_pred, labels_pred)
     else:
         for i, batch in enumerate(batches):
-            print(i, end='\r')
+            print('Batch:', i, end='\r')
             words, tags, heads, labels = batch
             heads_pred, labels_pred = predict(model, words, tags)
             words = words[0].data.numpy()
