@@ -39,6 +39,7 @@ class CONLL:
                 print(file=f)
 
 class Parser:
+
     def __init__(self, corpus, model):
         pass
         self.model = model
@@ -87,7 +88,7 @@ if __name__ == '__main__':
     predict_path = 'predicted.conll'
     result_path = 'result.txt'
 
-    corpus = Corpus(data_path=data_path, vocab_path=vocab_path)
+    corpus = Corpus(vocab_path, data_path)
     model = torch.load(model_path)
 
     parser = Parser(corpus, model)

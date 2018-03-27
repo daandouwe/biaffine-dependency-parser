@@ -18,3 +18,5 @@ class BiAffine(nn.Module):
         Rd = Rd.unsqueeze(1)
         S = Rh @ self.U @ Rd.transpose(-1, -2)
         return S.squeeze(1)
+
+    # TODO: add collumns of ones to Rh and Rd for biases.

@@ -101,7 +101,7 @@ def write(loss, train_acc, val_acc, path='csv'):
 
 def arc_accuracy(S_arc, heads, eps=1e-10):
     """
-    Accuracy of the arc predictions.
+    Accuracy of the arc predictions based on gready head prediction.
     """
     _, pred = S_arc.max(dim=-2)
     mask = (heads > 0).float()
