@@ -10,7 +10,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from data import Corpus
-from model import BiAffineParser
+# from model import BiAffineParser
+from noposmodel import BiAffineParser
 from util import Timer, plot
 
 ######################################################################
@@ -148,7 +149,8 @@ def train(batch):
     # Compute loss.
     arc_loss = model.arc_loss(S_arc, heads)
     lab_loss = model.lab_loss(S_lab, heads, labels)
-    loss = arc_loss + lab_loss
+    pos_loss = model.pos_loss
+    loss = arc_loss + lab_loss + pos_loss
 
     # Update parameters.
     optimizer.zero_grad()
@@ -157,8 +159,12 @@ def train(batch):
 
     # Convert losses to numpy float for printing.
     loss = loss.data.numpy()[0]
+    arc_loss = arc_loss.data.numpy()[0]
+    lab_loss = lab_loss.data.numpy()[0]
+    pos_loss = pos_loss.data.numpy()[0]
+    logs = dict(total=loss, arc=arc_loss, lab=lab_loss, pos=pos_loss)
 
-    return S_arc, S_lab, loss
+    return S_arc, S_lab, logs
 
 ######################################################################
 # Train!
@@ -166,7 +172,8 @@ def train(batch):
 print('Start of training..')
 timer = Timer()
 n_batches = len(corpus.train.words) // args.batch_size
-train_loss, train_acc, val_acc, test_acc = [], [], [], []
+train_loss = dict(total=[], arc=[], lab=[], pos=[])
+train_acc, val_acc, test_acc = [], [], []
 best_val_acc, best_epoch = 0, 0
 fig, ax = plt.subplots()
 try:
@@ -178,16 +185,20 @@ try:
         train_batches = corpus.train.batches(args.batch_size, length_ordered=False)
         for step, batch in enumerate(train_batches, 1):
             words, tags, heads, labels = batch
-            S_arc, S_lab, loss = train(batch)
-            train_loss.append(loss)
+            S_arc, S_lab, logs = train(batch)
+            train_loss['total'].append(logs['total'])
+            train_loss['arc'].append(logs['arc'])
+            train_loss['lab'].append(logs['lab'])
+            train_loss['pos'].append(logs['pos'])
             if step % args.print_every == 0:
                 arc_train_acc = arc_accuracy(S_arc, heads)
                 lab_train_acc = lab_accuracy(S_lab, heads, labels)
+                pos_train_acc = model.pos_acc
                 train_acc.append([arc_train_acc, lab_train_acc])
                 print('Epoch {} | Step {}/{} | Avg loss {:.4f} | Arc accuracy {:.2f}% | '
                       'Label accuracy {:.2f}% | {:.0f} sents/sec |'
-                        ''.format(epoch, step, n_batches, np.mean(train_loss[-args.print_every:]),
-                        100*arc_train_acc, 100*lab_train_acc,
+                        ''.format(epoch, step, n_batches, np.mean(train_loss['total'][-args.print_every:]),
+                        100*arc_train_acc, 100*lab_train_acc, 100*lab_train_acc,
                         args.batch_size*args.print_every/timer.elapsed()), end='\r')
             if step % args.plot_every == 0:
                 plot(corpus, model, fig, ax, step)
