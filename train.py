@@ -88,8 +88,8 @@ def write(train_loss, train_acc, val_acc, path='csv'):
     """
     with open(os.path.join(path, 'loss.train.csv'), 'w') as f:
         writer = csv.writer(f)
-        names = [['loss']]
-        losses = [[l] for l in train_loss]
+        names = [train_loss.keys()]
+        losses = list(zip(*train_loss.values()))
         writer.writerows(names + losses)
     with open(os.path.join(path, 'acc.train.csv'), 'w') as f:
         writer = csv.writer(f)
@@ -193,12 +193,12 @@ try:
             if step % args.print_every == 0:
                 arc_train_acc = arc_accuracy(S_arc, heads)
                 lab_train_acc = lab_accuracy(S_lab, heads, labels)
-                pos_train_acc = model.pos_acc
+                pos_train_acc = model.pos_acc.data.numpy()[0]
                 train_acc.append([arc_train_acc, lab_train_acc])
                 print('Epoch {} | Step {}/{} | Avg loss {:.4f} | Arc accuracy {:.2f}% | '
-                      'Label accuracy {:.2f}% | {:.0f} sents/sec |'
+                      'Label accuracy {:.2f}% | POS accuracy {:.2f}% | {:.0f} sents/sec |'
                         ''.format(epoch, step, n_batches, np.mean(train_loss['total'][-args.print_every:]),
-                        100*arc_train_acc, 100*lab_train_acc, 100*lab_train_acc,
+                        100*arc_train_acc, 100*lab_train_acc, 100*pos_train_acc,
                         args.batch_size*args.print_every/timer.elapsed()), end='\r')
             if step % args.plot_every == 0:
                 plot(corpus, model, fig, ax, step)

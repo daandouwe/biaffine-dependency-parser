@@ -36,14 +36,14 @@ class BiAffineParser(nn.Module):
 
         mlp_input = 2*lstm_hidden
         # POS MLP
-        self.pos_mlp = MLP(mlp_input, tag_vocab_size, 2, 'ReLU', mlp_dropout)
+        self.pos_mlp = MLP(mlp_input, mlp_lab_hidden, tag_vocab_size, 1, 'ReLU', mlp_dropout)
 
         # Arc MLPs
-        self.arc_mlp_h = MLP(mlp_input, mlp_arc_hidden, 2, 'ReLU', mlp_dropout)
-        self.arc_mlp_d = MLP(mlp_input, mlp_arc_hidden, 2, 'ReLU', mlp_dropout)
+        self.arc_mlp_h = MLP(mlp_input, mlp_arc_hidden, mlp_arc_hidden, 1, 'ReLU', mlp_dropout)
+        self.arc_mlp_d = MLP(mlp_input, mlp_arc_hidden, mlp_arc_hidden, 1, 'ReLU', mlp_dropout)
         # Label MLPs
-        self.lab_mlp_h = MLP(mlp_input, mlp_lab_hidden, 2, 'ReLU', mlp_dropout)
-        self.lab_mlp_d = MLP(mlp_input, mlp_lab_hidden, 2, 'ReLU', mlp_dropout)
+        self.lab_mlp_h = MLP(mlp_input, mlp_lab_hidden, mlp_arc_hidden, 1, 'ReLU', mlp_dropout)
+        self.lab_mlp_d = MLP(mlp_input, mlp_lab_hidden, mlp_arc_hidden, 1, 'ReLU', mlp_dropout)
 
         # BiAffine layers
         self.arc_biaffine = BiAffine(mlp_arc_hidden, 1)
