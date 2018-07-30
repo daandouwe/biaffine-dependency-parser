@@ -5,6 +5,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from mlp import MLP
 from biaffine import BiAffine
+from nn import RecurrentCharEmbedding
 
 class BiAffineParser(nn.Module):
 
@@ -12,11 +13,16 @@ class BiAffineParser(nn.Module):
                  tag_vocab_size, tag_emb_dim, emb_dropout,
                  lstm_hidden, lstm_num_layers, lstm_dropout,
                  mlp_arc_hidden, mlp_lab_hidden, mlp_dropout,
-                 num_labels, criterion=nn.CrossEntropyLoss()):
+                 num_labels, criterion=nn.CrossEntropyLoss(),
+                 char=False):
         super(BiAffineParser, self).__init__()
 
         # Embeddings
-        self.word_embedding = nn.Embedding(word_vocab_size, word_emb_dim, padding_idx=0)
+        if char:
+            self.word_embedding = RecurrentCharEmbedding(word_vocab_size, word_emb_dim,
+                                        hidden_size=word_emb_dim, output_dim=word_emb_dim, padding_idx=0)
+        else:
+            self.word_embedding = nn.Embedding(word_vocab_size, word_emb_dim, padding_idx=0)
         self.tag_embedding = nn.Embedding(tag_vocab_size, tag_emb_dim, padding_idx=0)
         self.emb_dropout = nn.Dropout(p=emb_dropout)
 

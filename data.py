@@ -1,4 +1,5 @@
 import os
+import string
 from collections import defaultdict
 import numpy as np
 
@@ -20,24 +21,44 @@ ROOT_TAG = 'ROOT'
 ROOT_LABEL = '_root_'
 ROOT_INDEX = 2
 
-def pad(batch):
+def wrap(batch):
+    """Packages the batch as a Variable containing a LongTensor."""
+    return Variable(torch.LongTensor(batch))
+
+def pad(batch, char=False):
     """
     Pad a batch of irregular length indices, and return as
     a Variable so it is ready as input for a PyTorch model.
     """
-    lens = list(map(len, batch))
-    max_len = max(lens)
-    padded_batch = []
-    for k, seq in zip(lens, batch):
-        padded =  seq + (max_len - k)*[PAD_INDEX]
-        padded_batch.append(padded)
-    return Variable(torch.LongTensor(padded_batch))
+    if char:
+        max_word_len = max(map(len, [w for sent in batch for w in sent]))
+        new_batch = []
+        for sent in batch:
+            lens = list(map(len, sent))
+            new_sent = []
+            for k, word in zip(lens, sent):
+                padded = word + (max_word_len - k)*[PAD_INDEX]
+                new_sent.append(padded)
+            new_batch.append(new_sent)
+        batch = new_batch
+        lens = list(map(len, batch))
+        max_len = max(lens)
+        padded_batch = []
+        for k, seq in zip(lens, batch):
+            padded = seq + (max_len - k)*[max_word_len*[PAD_INDEX]]
+            padded_batch.append(padded)
+    else:
+        lens = list(map(len, batch))
+        max_len = max(lens)
+        padded_batch = []
+        for k, seq in zip(lens, batch):
+            padded = seq + (max_len - k)*[PAD_INDEX]
+            padded_batch.append(padded)
+    return wrap(padded_batch)
 
 class Dictionary:
-    """
-    A dependency parse dictionary.
-    """
-    def __init__(self, path):
+    """A dependency parse dictionary."""
+    def __init__(self, path, char=False):
         self.w2i = defaultdict(lambda: UNK_INDEX)
         self.t2i = defaultdict(lambda: UNK_INDEX)
         self.l2i = defaultdict(lambda: UNK_INDEX)
@@ -57,6 +78,8 @@ class Dictionary:
         self.add_label(PAD_LABEL)
         self.add_label(UNK_LABEL)
         self.add_label(ROOT_LABEL)
+
+        self.char = char
 
         self.read(path)
 
@@ -84,10 +107,17 @@ class Dictionary:
 
     def read(self, path):
         with open(path + ".words.txt", 'r') as f:
-            for line in f:
-                word, processed_word, _ = line.split()
-                unk = bool(word != processed_word)
-                self.add_word(word, processed_word, unk=unk)
+            if self.char:
+                chars = set(f.read())
+                printable = set(string.printable)
+                chars = list(chars | printable)
+                for char in chars:
+                    self.add_word(char, char, unk=False)
+            else:
+                for line in f:
+                    word, processed_word, _ = line.split()
+                    unk = bool(word != processed_word)
+                    self.add_word(word, processed_word, unk=unk)
         with open(path + ".tags.txt", 'r') as f:
             for line in f:
                 tag, _ = line.split()
@@ -101,12 +131,15 @@ class Data:
     """
     A dependency parse dataset.
     """
-    def __init__(self, path, dictionary):
+    def __init__(self, path, dictionary, char=False):
         self.words = []
         self.tags = []
         self.heads = []
         self.labels = []
         self.lengths = []
+
+        self.char = char
+
         self.read(path, dictionary)
 
     def read(self, path, dictionary):
@@ -116,7 +149,10 @@ class Data:
                 fields = line.split()
                 if fields:
                     w, t, h, l = fields[1], fields[3], fields[6], fields[7]
-                    ws.append(dictionary.w2i[w.lower()])
+                    if self.char:
+                        ws.append([dictionary.w2i[char] for char in w])
+                    else:
+                        ws.append(dictionary.w2i[w.lower()])
                     ts.append(dictionary.t2i[t])
                     hs.append(int(h))
                     ls.append(dictionary.l2i[l])
@@ -134,7 +170,10 @@ class Data:
         Each sentence in our data-set must start with these indices.
         Note the convention: the root has itelf as head.
         """
-        return [ROOT_INDEX], [ROOT_INDEX], [0], [ROOT_INDEX], 1
+        if self.char:
+            return [[ROOT_INDEX]], [ROOT_INDEX], [0], [ROOT_INDEX], 1
+        else:
+            return [ROOT_INDEX], [ROOT_INDEX], [0], [ROOT_INDEX], 1
 
     def order(self):
         old_order = zip(range(len(self.lengths)), self.lengths)
@@ -167,7 +206,7 @@ class Data:
         if length_ordered:
             self.order()
         for i in batch_order:
-            words = pad(self.words[i:i+batch_size])
+            words = pad(self.words[i:i+batch_size], char=self.char)
             tags = pad(self.tags[i:i+batch_size])
             heads = pad(self.heads[i:i+batch_size])
             labels = pad(self.labels[i:i+batch_size])
@@ -177,15 +216,21 @@ class Corpus:
     """
     A corpus of three datasets (train, development, and test) and a dictionary.
     """
-    def __init__(self, vocab_path="vocab/train", data_path="stanford-ptb"):
-        self.dictionary = Dictionary(vocab_path)
-        self.train = Data(os.path.join(data_path, "train-stanford-raw.conll"), self.dictionary)
-        self.dev = Data(os.path.join(data_path, "dev-stanford-raw.conll"), self.dictionary)
-        self.test = Data(os.path.join(data_path, "test-stanford-raw.conll"), self.dictionary)
+    def __init__(self, vocab_path="vocab/train", data_path="stanford-ptb", char=False):
+        self.dictionary = Dictionary(vocab_path, char=char)
+        self.train = Data(os.path.join(data_path, "train-stanford-raw.conll"), self.dictionary, char=char)
+        self.dev = Data(os.path.join(data_path, "dev-stanford-raw.conll"), self.dictionary, char=char)
+        self.test = Data(os.path.join(data_path, "test-stanford-raw.conll"), self.dictionary, char=char)
 
 if __name__ == "__main__":
     # Example usage:
-    corpus = Corpus(data_path="../../stanford-ptb")
+    corpus = Corpus(data_path="../../stanford-ptb", char=True)
     batches = corpus.train.batches(16)
     for _ in range(10):
         words, tags, heads, labels = next(batches)
+
+    from nn import RecurrentCharEmbedding
+
+    model = RecurrentCharEmbedding(len(corpus.dictionary.w2i), 100, 100, 100, dropout=0.33, bi=True)
+
+    model(words)

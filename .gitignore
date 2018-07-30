@@ -8,4 +8,4 @@ vocab/*
 *.txt
 *.conll
 *.pl
-
+.remote-sync.json

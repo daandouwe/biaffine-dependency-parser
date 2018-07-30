@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 import os
 import csv
@@ -11,16 +12,19 @@ import matplotlib.pyplot as plt
 
 from data import Corpus
 from model import BiAffineParser
-from util import Timer, plot
+from util import Timer
+# from util import Timer, plot
 
 ######################################################################
 # Parse command line arguments.
 ######################################################################
-parser = argparse.ArgumentParser(description='Biaffine dependency parser')
+parser = argparse.ArgumentParser(description='Biaffine graph-based dependency parser')
 parser.add_argument('--data', type=str, default='../../stanford-ptb',
                     help='location of the data corpus')
 parser.add_argument('--vocab', type=str, default='vocab/train',
                     help='location of the preprocessed vocabulary')
+parser.add_argument('--char', action='store_true',
+                    help='use character level word embeddings')
 parser.add_argument('--word_emb_dim', type=int, default=100,
                     help='size of word embeddings')
 parser.add_argument('--tag_emb_dim', type=int, default=20,
@@ -59,7 +63,7 @@ torch.manual_seed(args.seed)
 ######################################################################
 # Initialize the data, model, and optimizer.
 ######################################################################
-corpus = Corpus(data_path=args.data, vocab_path=args.vocab)
+corpus = Corpus(data_path=args.data, vocab_path=args.vocab, char=args.char)
 model = BiAffineParser(word_vocab_size=len(corpus.dictionary.w2i),
                        word_emb_dim=args.word_emb_dim,
                        tag_vocab_size=len(corpus.dictionary.t2i),
@@ -72,7 +76,8 @@ model = BiAffineParser(word_vocab_size=len(corpus.dictionary.w2i),
                        mlp_lab_hidden=args.mlp_lab_hidden,
                        mlp_dropout=args.dropout,
                        num_labels=len(corpus.dictionary.l2i),
-                       criterion=nn.CrossEntropyLoss())
+                       criterion=nn.CrossEntropyLoss(),
+                       char=args.char)
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 ######################################################################
@@ -168,7 +173,7 @@ timer = Timer()
 n_batches = len(corpus.train.words) // args.batch_size
 train_loss, train_acc, val_acc, test_acc = [], [], [], []
 best_val_acc, best_epoch = 0, 0
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 try:
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
@@ -189,8 +194,8 @@ try:
                         ''.format(epoch, step, n_batches, np.mean(train_loss[-args.print_every:]),
                         100*arc_train_acc, 100*lab_train_acc,
                         args.batch_size*args.print_every/timer.elapsed()), end='\r')
-            if step % args.plot_every == 0:
-                plot(corpus, model, fig, ax, step)
+            # if step % args.plot_every == 0:
+                # plot(corpus, model, fig, ax, step)
         # Evaluate model on validation set.
         arc_val_acc, lab_val_acc = evaluate(model, corpus)
         val_acc.append([arc_val_acc, lab_val_acc])
