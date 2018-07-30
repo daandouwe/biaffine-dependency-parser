@@ -34,13 +34,13 @@ class RecurrentCharEmbedding(nn.Module):
         sort_idx = sort_idx.cuda() if cuda else sort_idx
         x = x[sort_idx]
 
-        # Remove all rows from x that are all all PAD_INDEX.
+        # Remove the rows (i.e. words) from x that consist entirely of PAD_INDEX.
         non_padding_idx = (sorted_lengths != 0).long().sum().data[0]
         num_all_pad = x.size(0) - non_padding_idx
         x = x[:non_padding_idx]
         sorted_lengths = sorted_lengths[:non_padding_idx]
 
-        # Embed chars and pack for rnn input
+        # Embed chars and pack for rnn input.
         x = self.embedding(x)
         x = self.dropout(x)
         sorted_lengths = [i for i in sorted_lengths.data]

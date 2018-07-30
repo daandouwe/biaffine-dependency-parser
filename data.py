@@ -30,6 +30,8 @@ def pad(batch, char=False):
     Pad a batch of irregular length indices, and return as
     a Variable so it is ready as input for a PyTorch model.
     """
+    # If character input then we first need to pad the individual words
+    # before we can pad the sentences.
     if char:
         max_word_len = max(map(len, [w for sent in batch for w in sent]))
         new_batch = []
@@ -41,19 +43,14 @@ def pad(batch, char=False):
                 new_sent.append(padded)
             new_batch.append(new_sent)
         batch = new_batch
-        lens = list(map(len, batch))
-        max_len = max(lens)
-        padded_batch = []
-        for k, seq in zip(lens, batch):
-            padded = seq + (max_len - k)*[max_word_len*[PAD_INDEX]]
-            padded_batch.append(padded)
-    else:
-        lens = list(map(len, batch))
-        max_len = max(lens)
-        padded_batch = []
-        for k, seq in zip(lens, batch):
-            padded = seq + (max_len - k)*[PAD_INDEX]
-            padded_batch.append(padded)
+    # Padding the sentences is then the same for both cases.
+    pad_word = max_word_len*[PAD_INDEX] if char else PAD_INDEX
+    lens = list(map(len, batch))
+    max_len = max(lens)
+    padded_batch = []
+    for k, seq in zip(lens, batch):
+        padded = seq + (max_len - k)*[pad_word]
+        padded_batch.append(padded)
     return wrap(padded_batch)
 
 class Dictionary:
