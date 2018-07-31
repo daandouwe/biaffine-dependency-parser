@@ -4,6 +4,46 @@ from torch.autograd import Variable
 
 from data import PAD_INDEX, wrap
 
+class MLP(nn.Module):
+    """Module for an MLP with dropout."""
+    def __init__(self, input_size, layer_size, depth, activation, dropout):
+        super(MLP, self).__init__()
+        self.layers = nn.Sequential()
+        act_fn = getattr(nn, activation)
+        for i in range(depth):
+            self.layers.add_module('fc_{}'.format(i),
+                                   nn.Linear(input_size, layer_size))
+            if activation:
+                self.layers.add_module('{}_{}'.format(activation, i),
+                                       act_fn())
+            if dropout:
+                self.layers.add_module('dropout_{}'.format(i),
+                                       nn.Dropout(dropout))
+            input_size = layer_size
+
+    def forward(self, x):
+        return self.layers(x)
+
+
+class BiAffine(nn.Module):
+    """Biaffine attention layer."""
+    def __init__(self, input_dim, output_dim):
+        super(BiAffine, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.U = nn.Parameter(torch.FloatTensor(output_dim, input_dim, input_dim))
+        nn.init.xavier_uniform(self.U)
+
+    def forward(self, Rh, Rd):
+        Rh = Rh.unsqueeze(1)
+        Rd = Rd.unsqueeze(1)
+        S = Rh @ self.U @ Rd.transpose(-1, -2)
+        return S.squeeze(1)
+
+    # TODO: add collumns of ones to Rh and Rd for biases.
+
+
+
 class RecurrentCharEmbedding(nn.Module):
     """Simple RNN based encoder for character-level word embeddings.
 

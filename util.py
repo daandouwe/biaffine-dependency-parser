@@ -1,5 +1,6 @@
 import os
 import time
+import csv
 
 import torch
 import torch.nn as nn
@@ -9,9 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class Timer:
-    """
-    A simple timer to use during training.
-    """
+    """A simple timer to use during training."""
     def __init__(self):
         self.time0 = time.time()
 
@@ -20,7 +19,23 @@ class Timer:
         elapsed = time1 - self.time0
         self.time0 = time1
         return elapsed
-#
+
+def write(train_loss, train_acc, val_acc, path='csv'):
+    """Write out the loss and accuracy to CSV files."""
+    with open(os.path.join(path, 'loss.train.csv'), 'w') as f:
+        writer = csv.writer(f)
+        names = [['loss']]
+        losses = [[l] for l in train_loss]
+        writer.writerows(names + losses)
+    with open(os.path.join(path, 'acc.train.csv'), 'w') as f:
+        writer = csv.writer(f)
+        names = [["train_arc_acc", "train_lab_acc"]]
+        writer.writerows(names + train_acc)
+    with open(os.path.join(path, 'acc.val.csv'), 'w') as f:
+        writer = csv.writer(f)
+        names = [["val_arc_acc", "val_lab_acc"]]
+        writer.writerows(names + val_acc)
+
 # def plot(corpus, model, fig, ax, step, sent=2):
 #     words = Variable(torch.LongTensor([corpus.train.words[sent]]))
 #     tags = Variable(torch.LongTensor([corpus.train.tags[sent]]))
