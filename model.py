@@ -6,7 +6,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from data import PAD_INDEX
 from nn import MLP, BiAffine, RecurrentCharEmbedding
 from encoder import RecurrentEncoder
-from transformer import make_model
+from transformer import TransformerEncoder
 
 class BiAffineParser(nn.Module):
 
@@ -36,7 +36,7 @@ class BiAffineParser(nn.Module):
         # Tranformer
         self.transformer = True
         if self.transformer:
-            self.encoder = make_transformer(d_model=encoder_input, dropout=0.1)
+            self.encoder = TransformerEncoder(d_model=encoder_input, dropout=0.1)
             encoder_dim = encoder_input
 
         # Arc MLPs

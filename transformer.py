@@ -154,10 +154,17 @@ class PositionalEncoding(nn.Module):
 
 class TransformerEncoder(nn.Module):
     """A Transformer encoder."""
-    def __init__(self, encoder, src_embed):
+    def __init__(self, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):
         super(TransformerEncoder, self).__init__()
-        self.encoder = encoder
-        self.src_embed = src_embed
+        attn = MultiHeadedAttention(h, d_model)
+        ff = PositionwiseFeedForward(d_model, d_ff, dropout)
+        self.encoder = Encoder(EncoderLayer(d_model, attn, ff, dropout), N)
+        self.src_embed = PositionalEncoding(d_model, dropout)
+
+        # Initialize parameters with Glorot.
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform(p)
 
     def forward(self, src, src_mask):
         """Take in and process masked src and target sequences."""
@@ -166,25 +173,9 @@ class TransformerEncoder(nn.Module):
     def encode(self, src, src_mask):
         return self.encoder(self.src_embed(src), src_mask)
 
-def make_transformer(N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):
-    """Helper: Construct a model from hyperparameters."""
-    c = copy.deepcopy
-    attn = MultiHeadedAttention(h, d_model)
-    ff = PositionwiseFeedForward(d_model, d_ff, dropout)
-    position = PositionalEncoding(d_model, dropout)
-    model = TransformerEncoder(
-        Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N),
-        c(position))
-
-    # This was important from their code.
-    # Initialize parameters with Glorot / fan_avg.
-    for p in model.parameters():
-        if p.dim() > 1:
-            nn.init.xavier_uniform(p)
-    return model
 
 if __name__ == '__main__':
-    encoder = make_transformer(d_model=512)
+    encoder = TransformerEncoder(d_model=512)
     embedding = nn.Embedding(100, 512)
 
     src = Variable(torch.arange(1, 16).long().view(3, 5))
