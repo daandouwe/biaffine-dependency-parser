@@ -83,12 +83,21 @@ class BiAffineParser(nn.Module):
 
 
 def make_model(args, word_vocab_size, tag_vocab_size, num_labels):
-    # Embedding
-    if args.char:
-        word_embedding = RecurrentCharEmbedding(word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
+    # Embeddings
+    # Character embeddins
+    if args.use_char:
+        if args.char_encoder == 'rnn':
+            word_embedding = RecurrentCharEmbedding(word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
+        elif args.char_encoder == 'cnn':
+            raise NotImplementedError('CNN character econder not yet implemented.')
+        elif args.char_encoder == 'transformer':
+            raise NotImplementedError('Transformer character econder not yet implemented.')
+    # Word embeddings.
     else:
         word_embedding = nn.Embedding(word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
-
+        if args.use_glove:
+            raise NotImplementedError('GloVe embeddings not yet implemented.')
+    # Optional tag embedding
     if args.disable_tags:
         embedding = WordEmbedding(word_embedding, args.emb_dropout)
         encoder_input = args.word_emb_dim
@@ -102,6 +111,8 @@ def make_model(args, word_vocab_size, tag_vocab_size, num_labels):
         encoder = RecurrentEncoder(args.rnn_type, encoder_input, args.rnn_hidden, args.rnn_num_layers,
                                    args.batch_first, args.rnn_dropout, bidirectional=True)
         encoder_dim = 2 * args.rnn_hidden
+    elif args.encoder == 'cnn':
+        raise NotImplementedError('CNN econder not yet implemented.')
     elif args.encoder == 'transformer':
         encoder = TransformerEncoder(encoder_input, args.N, args.d_model, args.d_ff, args.h, dropout=args.transformer_dropout)
         encoder_dim = args.d_model

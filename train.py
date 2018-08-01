@@ -93,31 +93,32 @@ class MultiGPULossCompute:
 def run_epoch(args, model, corpus, train_step):
     model.train()
     n_batches = len(corpus.train.words) // args.batch_size
-    timer = Timer()
+    start_time = time.time()
     # Turn on dropout.
     # Get a new set of shuffled training batches.
-    train_batches = corpus.train.batches(args.batch_size, length_ordered=args.length_ordered)
+    train_batches = corpus.train.batches(args.batch_size, length_ordered=args.disable_length_ordered)
+    ntokens = 0
     for step, batch in enumerate(train_batches, 1):
         words, tags, heads, labels = batch
         if args.cuda:
             words, tags, heads, labels = words.cuda(), tags.cuda(), heads.cuda(), labels.cuda()
         S_arc, S_lab, loss = train_step(words, tags, heads, labels)
-
+        ntokens += words.size(0) * words.size(1)
         LOSSES['train_loss'].append(loss)
         if step % args.print_every == 0:
             arc_train_acc = arc_accuracy(S_arc, heads)
             lab_train_acc = lab_accuracy(S_lab, heads, labels)
             LOSSES['train_acc'].append([arc_train_acc, lab_train_acc])
-            print('| Step {:5d}/{:5d} | Avg loss {:3.4f} | Arc accuracy {:4.2f}% | '
-                  'Label accuracy {:4.2f}% | {:4.0f} sents/sec |'
+            print('| Step {:5d}/{:5d} | Avg loss {:3.4f} | Arc acc {:4.2f}% | '
+                  'Label acc {:4.2f}% | {:4.0f} tokens/sec |'
                     ''.format(step, n_batches, np.mean(LOSSES['train_loss'][-args.print_every:]),
                     100*arc_train_acc, 100*lab_train_acc,
-                    args.batch_size*args.print_every/timer.elapsed()), end='\r')
+                    ntokens/(time.time() - start_time)), end='\r')
 
 ######################################################################
 # Train!
 ######################################################################
-def main(args):
+def train(args):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
@@ -126,7 +127,7 @@ def main(args):
     print('Using cuda: {}'.format(args.cuda))
 
     # Initialize the data, model, and optimizer.
-    corpus = Corpus(data_path=args.data, vocab_path=args.vocab, char=args.char)
+    corpus = Corpus(data_path=args.data, vocab_path=args.vocab, char=args.use_char)
     model = make_model(
                 args,
                 word_vocab_size=len(corpus.dictionary.w2i),
@@ -170,12 +171,14 @@ def main(args):
 
             write(LOSSES['train_loss'], LOSSES['train_acc'], LOSSES['val_acc'])
             # End epoch with some useful info in the terminal.
+            print()
             print('-' * 89)
-            print('| End of epoch {} | Time elapsed: {:.2f}s | Valid accuracy {:.2f}% |'
-                    ' Best accuracy {:.2f}% (epoch {})'.format(epoch,
+            print('| End of epoch {:3d} | Time {:5.2f}s | Valid accuracy {:3.2f}% |'
+                    ' Best accuracy {:3.2f}% (epoch {:3d}) |'.format(epoch,
                     (timer.elapsed()), 100*arc_val_acc, 100*best_val_acc, best_epoch))
             print('-' * 89)
     except KeyboardInterrupt:
+        print()
         print('-' * 89)
         print('Exiting from training early')
 
