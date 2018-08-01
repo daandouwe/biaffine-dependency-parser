@@ -5,7 +5,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from numpy import prod
 
 from data import PAD_INDEX
-from embeddings import WordEmbedding, WordTagEmbedding
+from embedding import WordEmbedding, WordTagEmbedding
 from nn import MLP, BiAffine, RecurrentCharEmbedding
 from encoder import RecurrentEncoder
 from transformer import TransformerEncoder
