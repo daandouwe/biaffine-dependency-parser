@@ -49,13 +49,13 @@ def main():
                         help='dropout used in rnn')
     # Transformer encoder arguments
     encode.add_argument('--N', type=int, default=6,
-                        help='')
+                        help='transformer options')
     encode.add_argument('--d_model', type=int, default=512,
-                        help='')
+                        help='transformer options')
     encode.add_argument('--d_ff', type=int, default=2048,
-                        help='')
+                        help='transformer options')
     encode.add_argument('--h', type=int, default=8,
-                        help='')
+                        help='transformer options')
     encode.add_argument('--transformer_dropout', type=float, default=0.1,
                         help='dropout used in transformer')
     # Biaffine transformations

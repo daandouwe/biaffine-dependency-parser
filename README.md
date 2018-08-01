@@ -97,11 +97,15 @@ Training arguments:
 - [x] Add MST algorithm for decoding.
 - [x] Write predicted parses to conll file.
 - [ ] Label loss converges very fast, which seems to hurt the arc accuracy.
-- [ ] A couple of full runs of the model for results.
+- [x] A couple of full runs of the model for results.
 - [ ] Perfom some ablation experiments.
-- [ ] Make it CUDA.
+- [x] Make it CUDA.
+- [x] Enable multi-gpu training
 - [x] Work on character-level embedding of words (CNN or LSTM).
-- [ ] Make a version that works without input POS-tags at prediction time. See [spaCy's parser](https://spacy.io/api/) and these papers that it is based on: [Stack-propagation: Improved Representation Learning for Syntax](https://www.semanticscholar.org/paper/Stack-propagation%3A-Improved-Representation-Learning-Zhang-Weiss/0c133f79b23e8c680891d2e49a66f0e3d37f1466) and [Deep multi-task learning with low level tasks supervised at lower layers](https://pdfs.semanticscholar.org/03ad/06583c9721855ccd82c3d969a01360218d86.pdf?_ga=2.12476148.1950369760.1522163668-1479393485.1519147866).
-- [ ] Try with different RNN cell (GRU, RAN).
-- [ ] Try with CNN instead of LSTM for context embeddings. (again see spaCy's parser).
-- [ ] Implement transformer as encoder, then make training parallelizable.
+- [ ] Disable input POS-tags at prediction time but train with them using mutli-task learning. See [spaCy's parser](https://spacy.io/api/) and these papers that it is based on: [Stack-propagation: Improved Representation Learning for Syntax](https://www.semanticscholar.org/paper/Stack-propagation%3A-Improved-Representation-Learning-Zhang-Weiss/0c133f79b23e8c680891d2e49a66f0e3d37f1466) and [Deep multi-task learning with low level tasks supervised at lower layers](https://pdfs.semanticscholar.org/03ad/06583c9721855ccd82c3d969a01360218d86.pdf?_ga=2.12476148.1950369760.1522163668-1479393485.1519147866).
+- [x] Implement RNN options: RNN, GRU, (RAN?)
+- [ ] Different encoder: CNN (again see [spaCy's parser](https://spacy.io/api/)).
+- [x] Different encoder: [Transformer](http://nlp.seas.harvard.edu/2018/04/03/attention.html).
+- [ ] Load pretrained GloVe embeddings.
+- [ ] Character level word embeddings: RNN
+- [x] Character level word embeddings: CNN
