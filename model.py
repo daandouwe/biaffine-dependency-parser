@@ -2,45 +2,28 @@ import torch
 from torch import nn
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from numpy import prod
 
 from data import PAD_INDEX
+from embeddings import WordEmbedding, WordTagEmbedding
 from nn import MLP, BiAffine, RecurrentCharEmbedding
 from encoder import RecurrentEncoder
 from transformer import TransformerEncoder
 
 class BiAffineParser(nn.Module):
 
-    def __init__(self, word_vocab_size, word_emb_dim,
-                 tag_vocab_size, tag_emb_dim, emb_dropout,
-                 rnn_type, rnn_hidden, rnn_num_layers, rnn_dropout,
-                 mlp_arc_hidden, mlp_lab_hidden, mlp_dropout,
-                 num_labels, criterion, batch_first=True,
-                 char=False):
+    def __init__(self, embedding, encoder, encoder_type,
+                 mlp_input, mlp_arc_hidden,
+                 mlp_lab_hidden, mlp_dropout,
+                 num_labels, criterion):
         super(BiAffineParser, self).__init__()
-        # Embeddings
-        if char:
-            self.word_embedding = RecurrentCharEmbedding(word_vocab_size, word_emb_dim, word_emb_dim, word_emb_dim, padding_idx=PAD_INDEX)
-        else:
-            self.word_embedding = nn.Embedding(word_vocab_size, word_emb_dim, padding_idx=PAD_INDEX)
-        self.tag_embedding = nn.Embedding(tag_vocab_size, tag_emb_dim, padding_idx=PAD_INDEX)
-        self.emb_dropout = nn.Dropout(p=emb_dropout)
 
-        # Encoder
-        encoder_input = word_emb_dim + tag_emb_dim
-        # RNN
-        self.rnn = False
-        if self.rnn:
-            self.encoder = RecurrentEncoder(rnn_type, encoder_input, rnn_hidden, rnn_num_layers,
-                                            batch_first, rnn_dropout, bidirectional=True)
-            encoder_dim = 2 * rnn_hidden
-        # Tranformer
-        self.transformer = True
-        if self.transformer:
-            self.encoder = TransformerEncoder(d_model=encoder_input, dropout=0.1)
-            encoder_dim = encoder_input
+        self.embedding = embedding
+        self.encoder = encoder
+
+        self.encoder_type = encoder_type
 
         # Arc MLPs
-        mlp_input = encoder_dim
         self.arc_mlp_h = MLP(mlp_input, mlp_arc_hidden, 2, 'ReLU', mlp_dropout)
         self.arc_mlp_d = MLP(mlp_input, mlp_arc_hidden, 2, 'ReLU', mlp_dropout)
         # Label MLPs
@@ -52,18 +35,18 @@ class BiAffineParser(nn.Module):
         self.lab_biaffine = BiAffine(mlp_lab_hidden, num_labels)
 
         # Loss criterion
-        self.criterion = criterion
+        self.criterion = criterion()
 
-    def forward(self, words, tags):
+    def forward(self, **kwargs):
         """Compute the score matrices for the arcs and labels."""
-        mask = (words != PAD_INDEX).unsqueeze(-2)
-        lengths = (words != PAD_INDEX).long().sum(-1)
-        aux = mask if self.transformer else lengths
 
-        words = self.word_embedding(words)
-        tags = self.tag_embedding(tags)
-        x = torch.cat((words, tags), dim=-1)
-        x = self.emb_dropout(x)
+        x = self.embedding(**kwargs)
+
+        words = kwargs['words']
+        if self.encoder_type == 'transformer':
+            aux = (words != PAD_INDEX).unsqueeze(-2) # mask
+        if self.encoder_type == 'rnn':
+            aux = (words != PAD_INDEX).long().sum(-1) # sentence_lenghts
 
         h = self.encoder(x, aux)
 
@@ -92,3 +75,48 @@ class BiAffineParser(nn.Module):
         S_lab = S_lab.contiguous().view(-1, S_lab.size(-1)) # [batch*sent_len, n_labels]
         labels = labels.view(-1)                            # [batch*sent_len]
         return self.criterion(S_lab, labels)
+
+    @property
+    def num_parameters(self):
+        """Returns the number of trainable parameters of the model."""
+        return sum(prod(p.shape) for p in self.parameters() if p.requires_grad)
+
+
+def make_model(args, word_vocab_size, tag_vocab_size, num_labels):
+    # Embedding
+    if args.char:
+        word_embedding = RecurrentCharEmbedding(word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
+    else:
+        word_embedding = nn.Embedding(word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
+
+    if args.disable_tags:
+        embedding = WordEmbedding(word_embedding, args.emb_dropout)
+        encoder_input = args.word_emb_dim
+    else:
+        tag_embedding = nn.Embedding(tag_vocab_size, args.tag_emb_dim, padding_idx=PAD_INDEX)
+        embedding = WordTagEmbedding(word_embedding, tag_embedding, args.emb_dropout)
+        encoder_input = args.word_emb_dim + args.tag_emb_dim
+
+    # Encoder
+    if args.encoder == 'rnn':
+        encoder = RecurrentEncoder(args.rnn_type, encoder_input, args.rnn_hidden, args.rnn_num_layers,
+                                   args.batch_first, args.rnn_dropout, bidirectional=True)
+        encoder_dim = 2 * args.rnn_hidden
+    elif args.encoder == 'transformer':
+        encoder = TransformerEncoder(encoder_input, args.N, args.d_model, args.d_ff, args.h, dropout=args.transformer_dropout)
+        encoder_dim = args.d_model
+
+    # Initialize the model.
+    model = BiAffineParser(
+                embedding, encoder, args.encoder,
+                encoder_dim, args.mlp_arc_hidden,
+                args.mlp_lab_hidden, args.mlp_dropout,
+                num_labels, nn.CrossEntropyLoss
+            )
+
+    # Initialize parameters with Glorot.
+    for p in model.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform(p)
+
+    return model

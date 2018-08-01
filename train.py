@@ -7,9 +7,12 @@ from torch.autograd import Variable
 import numpy as np
 import matplotlib.pyplot as plt
 
+from model import PAD_INDEX
 from data import Corpus
-from model import BiAffineParser
+from model import make_model
 from util import Timer, write
+
+LOSSES = {'train_loss': [], 'train_acc': [], 'val_acc': [], 'test_acc': []}
 
 ######################################################################
 # Useful functions.
@@ -17,19 +20,19 @@ from util import Timer, write
 def arc_accuracy(S_arc, heads, eps=1e-10):
     """Accuracy of the arc predictions based on gready head prediction."""
     _, pred = S_arc.max(dim=-2)
-    mask = (heads > 0).float()
+    mask = (heads != PAD_INDEX).float()
     accuracy = torch.sum((pred == heads).float() * mask, dim=-1) / (torch.sum(mask, dim=-1) + eps)
-    return torch.mean(accuracy).data.numpy()[0]
+    return torch.mean(accuracy).data[0]
 
 def lab_accuracy(S_lab, heads, labels, eps=1e-10):
     """Accuracy of label predictions on the gold arcs."""
     _, pred = S_lab.max(dim=1)
     pred = torch.gather(pred, 1, heads.unsqueeze(1)).squeeze(1)
-    mask = (heads > 0).float()
+    mask = (heads != PAD_INDEX).float()
     accuracy = torch.sum((pred == labels).float() * mask, dim=-1) / (torch.sum(mask, dim=-1) + eps)
-    return torch.mean(accuracy).data.numpy()[0]
+    return torch.mean(accuracy).data[0]
 
-def evaluate(model, corpus):
+def evaluate(args, model, corpus):
     """Evaluate the arc and label accuracy of the model on the development corpus."""
     # Turn on evaluation mode to disable dropout.
     model.eval()
@@ -37,35 +40,79 @@ def evaluate(model, corpus):
     arc_acc, lab_acc = 0, 0
     for k, batch in enumerate(dev_batches, 1):
         words, tags, heads, labels = batch
-        S_arc, S_lab = model(words, tags)
+        if args.cuda:
+            words, tags, heads, labels = words.cuda(), tags.cuda(), heads.cuda(), labels.cuda()
+        S_arc, S_lab = model(words=words, tags=tags)
         arc_acc += arc_accuracy(S_arc, heads)
         lab_acc += lab_accuracy(S_lab, heads, labels)
     arc_acc /= k
     lab_acc /= k
     return arc_acc, lab_acc
 
-######################################################################
-# The training step.
-######################################################################
-def train(model, batch, optimizer):
-    """Performs one forward pass and parameter update."""
-    # Forward pass.
-    words, tags, heads, labels = batch
-    S_arc, S_lab = model(words, tags)
-    # Compute loss.
-    arc_loss = model.arc_loss(S_arc, heads)
-    lab_loss = model.lab_loss(S_lab, heads, labels)
-    loss = arc_loss + lab_loss
 
-    # Update parameters.
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+class SimpleLossCompute:
+    """A simple loss compute and train function on one device."""
+    def __init__(self, model, optimizer):
+        self.model = model
+        self.optimizer = optimizer
 
-    # Convert losses to numpy float for printing.
-    loss = loss.data.numpy()[0]
+    def __call__(self, words, tags, heads, labels):
+        # Forward pass.
+        S_arc, S_lab = self.model(words=words, tags=tags)
+        # Compute loss.
+        arc_loss = self.model.arc_loss(S_arc, heads)
+        lab_loss = self.model.lab_loss(S_lab, heads, labels)
+        loss = arc_loss + lab_loss
+        # Update parameters.
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return S_arc, S_lab, loss.data[0]
 
-    return S_arc, S_lab, loss
+class MultiGPULossCompute:
+    """A multi-gpu loss compute and train function."""
+    def __init__(self, model, optimizer, devices, output_device=None):
+        self.model = model
+        self.optimizer = optimizer
+        self.devices = devices
+        self.output_device = output_device if output_device is not None else devices[0]
+
+    def __call__(self, words, tags, heads, labels):
+        # Forward pass.
+        S_arc, S_lab = self.model(words=words, tags=tags)
+        # Compute loss.
+        arc_loss = self.model.module.arc_loss(S_arc, heads)
+        lab_loss = self.model.module.lab_loss(S_lab, heads, labels)
+        loss = arc_loss + lab_loss
+        # Update parameters.
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return S_arc, S_lab, loss.data[0]
+
+def run_epoch(args, model, corpus, train_step):
+    model.train()
+    n_batches = len(corpus.train.words) // args.batch_size
+    timer = Timer()
+    # Turn on dropout.
+    # Get a new set of shuffled training batches.
+    train_batches = corpus.train.batches(args.batch_size, length_ordered=args.length_ordered)
+    for step, batch in enumerate(train_batches, 1):
+        words, tags, heads, labels = batch
+        if args.cuda:
+            words, tags, heads, labels = words.cuda(), tags.cuda(), heads.cuda(), labels.cuda()
+        S_arc, S_lab, loss = train_step(words, tags, heads, labels)
+
+        LOSSES['train_loss'].append(loss)
+        if step % args.print_every == 0:
+            arc_train_acc = arc_accuracy(S_arc, heads)
+            lab_train_acc = lab_accuracy(S_lab, heads, labels)
+            LOSSES['train_acc'].append([arc_train_acc, lab_train_acc])
+            print('| Step {:5d}/{:5d} | Avg loss {:3.4f} | Arc accuracy {:4.2f}% | '
+                  'Label accuracy {:4.2f}% | {:4.0f} sents/sec |'
+                    ''.format(step, n_batches, np.mean(LOSSES['train_loss'][-args.print_every:]),
+                    100*arc_train_acc, 100*lab_train_acc,
+                    args.batch_size*args.print_every/timer.elapsed()), end='\r')
 
 ######################################################################
 # Train!
@@ -73,68 +120,60 @@ def train(model, batch, optimizer):
 def main(args):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+
+    args.cuda = torch.cuda.is_available()
+    print('Using cuda: {}'.format(args.cuda))
 
     # Initialize the data, model, and optimizer.
     corpus = Corpus(data_path=args.data, vocab_path=args.vocab, char=args.char)
-    model = BiAffineParser(word_vocab_size=len(corpus.dictionary.w2i),
-                           word_emb_dim=args.word_emb_dim,
-                           tag_vocab_size=len(corpus.dictionary.t2i),
-                           tag_emb_dim=args.tag_emb_dim,
-                           emb_dropout=args.dropout,
-                           rnn_type=args.rnn_type,
-                           rnn_hidden=args.rnn_hidden,
-                           rnn_num_layers=args.rnn_num_layers,
-                           rnn_dropout=args.dropout,
-                           mlp_arc_hidden=args.mlp_arc_hidden,
-                           mlp_lab_hidden=args.mlp_lab_hidden,
-                           mlp_dropout=args.dropout,
-                           num_labels=len(corpus.dictionary.l2i),
-                           criterion=nn.CrossEntropyLoss(),
-                           char=args.char)
+    model = make_model(
+                args,
+                word_vocab_size=len(corpus.dictionary.w2i),
+                tag_vocab_size=len(corpus.dictionary.t2i),
+                num_labels=len(corpus.dictionary.l2i)
+            )
+    print('Model parameters: {:,}'.format(model.num_parameters))
+    if args.cuda:
+        model.cuda()
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
-    print('Start of training..')
+    if args.cuda:
+        device_count = torch.cuda.device_count()
+        if args.multi_gpu:
+            devices = list(range(device_count))
+            model = nn.DataParallel(model, device_ids=devices)
+            train_step = MultiGPULossCompute(model, optimizer, devices)
+            print('Training on {} GPUs: {}.'.format(device_count, devices))
+        else:
+            train_step = SimpleLossCompute(model, optimizer)
+            print('Training on 1 GPU out of {} availlable.'.format(device_count))
+
     timer = Timer()
-    n_batches = len(corpus.train.words) // args.batch_size
-    train_loss, train_acc, val_acc, test_acc = [], [], [], []
-    best_val_acc, best_epoch = 0, 0
-    # fig, ax = plt.subplots()
+    best_val_acc = 0.
+    best_epoch = 0
+    print('Start of training..')
     try:
         for epoch in range(1, args.epochs+1):
-            epoch_start_time = time.time()
-            # Turn on dropout.
-            model.train()
-            # Get a new set of shuffled training batches.
-            train_batches = corpus.train.batches(args.batch_size, length_ordered=False)
-            for step, batch in enumerate(train_batches, 1):
-                words, tags, heads, labels = batch
-                S_arc, S_lab, loss = train(model, batch, optimizer)
-                train_loss.append(loss)
-                if step % args.print_every == 0:
-                    arc_train_acc = arc_accuracy(S_arc, heads)
-                    lab_train_acc = lab_accuracy(S_lab, heads, labels)
-                    train_acc.append([arc_train_acc, lab_train_acc])
-                    print('Epoch {} | Step {}/{} | Avg loss {:.4f} | Arc accuracy {:.2f}% | '
-                          'Label accuracy {:.2f}% | {:.0f} sents/sec |'
-                            ''.format(epoch, step, n_batches, np.mean(train_loss[-args.print_every:]),
-                            100*arc_train_acc, 100*lab_train_acc,
-                            args.batch_size*args.print_every/timer.elapsed()), end='\r')
-                # if step % args.plot_every == 0:
-                    # plot(corpus, model, fig, ax, step)
+            run_epoch(args, model, corpus, train_step)
+
             # Evaluate model on validation set.
-            arc_val_acc, lab_val_acc = evaluate(model, corpus)
-            val_acc.append([arc_val_acc, lab_val_acc])
+            arc_val_acc, lab_val_acc = evaluate(args, model, corpus)
+            LOSSES['val_acc'].append([arc_val_acc, lab_val_acc])
+
             # Save model if it is the best so far.
             if arc_val_acc > best_val_acc:
                 torch.save(model, args.save)
                 best_val_acc = arc_val_acc
                 best_epoch = epoch
-            write(train_loss, train_acc, val_acc)
+
+            write(LOSSES['train_loss'], LOSSES['train_acc'], LOSSES['val_acc'])
             # End epoch with some useful info in the terminal.
             print('-' * 89)
             print('| End of epoch {} | Time elapsed: {:.2f}s | Valid accuracy {:.2f}% |'
                     ' Best accuracy {:.2f}% (epoch {})'.format(epoch,
-                    (time.time() - epoch_start_time), 100*arc_val_acc, 100*best_val_acc, best_epoch))
+                    (timer.elapsed()), 100*arc_val_acc, 100*best_val_acc, best_epoch))
             print('-' * 89)
     except KeyboardInterrupt:
         print('-' * 89)
@@ -143,7 +182,7 @@ def main(args):
     ######################################################################
     # Wrap-up.
     ######################################################################
-    write(train_loss, train_acc, val_acc)
-    arc_val_acc, lab_val_acc = evaluate(model, corpus)
+    write(LOSSES['train_loss'], LOSSES['train_acc'], LOSSES['val_acc'])
+    arc_val_acc, lab_val_acc = evaluate(args, model, corpus)
     if arc_val_acc > best_val_acc:
         torch.save(model, args.save)

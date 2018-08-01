@@ -154,14 +154,20 @@ class PositionalEncoding(nn.Module):
 
 class TransformerEncoder(nn.Module):
     """A Transformer encoder."""
-    def __init__(self, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):
+    def __init__(self, input_size, N, d_model, d_ff, h, dropout):
         super(TransformerEncoder, self).__init__()
         attn = MultiHeadedAttention(h, d_model)
         ff = PositionwiseFeedForward(d_model, d_ff, dropout)
         self.encoder = Encoder(EncoderLayer(d_model, attn, ff, dropout), N)
-        self.src_embed = PositionalEncoding(d_model, dropout)
+        self.src_embed = nn.Sequential(
+                            nn.Linear(input_size, d_model),
+                            PositionalEncoding(d_model, dropout)
+                        )
 
-        # Initialize parameters with Glorot.
+        self.initialize_parameters()
+
+    def initialize_parameters(self):
+        """Initialize parameters with Glorot."""
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform(p)

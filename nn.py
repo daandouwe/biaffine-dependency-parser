@@ -48,8 +48,11 @@ class RecurrentCharEmbedding(nn.Module):
     """Simple RNN based encoder for character-level word embeddings.
 
     Based on: https://github.com/bastings/parser/blob/extended_parser/parser/nn.py"""
-    def __init__(self, nchars, emb_dim, hidden_size, output_dim, padding_idx, dropout=0.33, bi=True):
+    def __init__(self, nchars, output_size, padding_idx, hidden_size=None, emb_dim=None, dropout=0.33, bi=True):
         super(RecurrentCharEmbedding, self).__init__()
+        # Default values for encoder.
+        emb_dim = output_size if emb_dim is None else emb_dim
+        hidden_size = output_size if hidden_size is None else hidden_size
 
         self.embedding = nn.Embedding(nchars, emb_dim)
         self.dropout = nn.Dropout(p=dropout)
@@ -58,7 +61,7 @@ class RecurrentCharEmbedding(nn.Module):
                             batch_first=True, dropout=dropout, bidirectional=bi)
 
         rnn_dim = hidden_size * 2 if bi else hidden_size
-        self.linear = nn.Linear(rnn_dim, output_dim, bias=False)
+        self.linear = nn.Linear(rnn_dim, output_size, bias=False)
 
         self.relu = nn.ReLU()
 
@@ -109,6 +112,7 @@ class RecurrentCharEmbedding(nn.Module):
         pairs = list(zip(sort_idx.data, range(sort_idx.size(0))))
         undo_sort_idx = [pair[1] for pair in sorted(pairs, key=lambda t: t[0])]
         undo_sort_idx = wrap(undo_sort_idx)
+        undo_sort_idx = undo_sort_idx.cuda() if cuda else undo_sort_idx
         out = out[undo_sort_idx]
         out = out.view(batch_size, sent_len, out.size(-1))
 
