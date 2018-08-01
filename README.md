@@ -63,10 +63,10 @@ Encoder options:
                         number of layers
   --rnn_dropout RNN_DROPOUT
                         dropout used in rnn
-  --N N
-  --d_model D_MODEL
-  --d_ff D_FF
-  --h H
+  --N N                 transformer options
+  --d_model D_MODEL     transformer options
+  --d_ff D_FF           transformer options
+  --h H                 transformer options
   --transformer_dropout TRANSFORMER_DROPOUT
                         dropout used in transformer
 
