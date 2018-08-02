@@ -6,14 +6,17 @@ A PyTorch implementation of the neural dependency parser described in [Deep Biaf
 ```
 usage: main.py [-h] [--data DATA] [--vocab VOCAB] [--disable_length_ordered]
                [--use_glove] [--use_char]
-               [--char_encoder {rnn,cnn,transformer}] [--disable_tags]
-               [--word_emb_dim WORD_EMB_DIM] [--tag_emb_dim TAG_EMB_DIM]
-               [--emb_dropout EMB_DROPOUT] [--encoder {rnn,cnn,transformer}]
+               [--char_encoder {rnn,cnn,transformer}]
+               [--filter_factor FILTER_FACTOR] [--disable_words]
+               [--disable_tags] [--word_emb_dim WORD_EMB_DIM]
+               [--tag_emb_dim TAG_EMB_DIM] [--emb_dropout EMB_DROPOUT]
+               [--encoder {rnn,cnn,transformer,none}]
                [--rnn_type {RNN,GRU,LSTM}] [--rnn_hidden RNN_HIDDEN]
                [--rnn_num_layers RNN_NUM_LAYERS] [--batch_first BATCH_FIRST]
-               [--rnn_dropout RNN_DROPOUT] [--N N] [--d_model D_MODEL]
-               [--d_ff D_FF] [--h H]
-               [--transformer_dropout TRANSFORMER_DROPOUT]
+               [--rnn_dropout RNN_DROPOUT] [--cnn_num_layers CNN_NUM_LAYERS]
+               [--kernel_size KERNEL_SIZE] [--cnn_dropout CNN_DROPOUT] [--N N]
+               [--d_model D_MODEL] [--d_ff D_FF] [--h H]
+               [--trans_dropout TRANS_DROPOUT]
                [--mlp_arc_hidden MLP_ARC_HIDDEN]
                [--mlp_lab_hidden MLP_LAB_HIDDEN] [--mlp_dropout MLP_DROPOUT]
                [--multi_gpu] [--lr LR] [--epochs EPOCHS]
@@ -42,7 +45,10 @@ Embedding options:
   --use_char            use character level word embeddings
   --char_encoder {rnn,cnn,transformer}
                         type of character encoder used for word embeddings
-  --disable_tags        do not use tags as additional input
+  --filter_factor FILTER_FACTOR
+                        controls output size of cnn character embedding
+  --disable_words       do not use words as input
+  --disable_tags        do not use tags as input
   --word_emb_dim WORD_EMB_DIM
                         size of word embeddings
   --tag_emb_dim TAG_EMB_DIM
@@ -51,8 +57,10 @@ Embedding options:
                         dropout used on embeddings
 
 Encoder options:
-  --encoder {rnn,cnn,transformer}
+  --encoder {rnn,cnn,transformer,none}
                         type of sentence encoder used
+
+RNN options:
   --rnn_type {RNN,GRU,LSTM}
                         number of hidden units in RNN
   --rnn_hidden RNN_HIDDEN
@@ -63,11 +71,21 @@ Encoder options:
                         number of layers
   --rnn_dropout RNN_DROPOUT
                         dropout used in rnn
+
+CNN options:
+  --cnn_num_layers CNN_NUM_LAYERS
+                        number convolutions
+  --kernel_size KERNEL_SIZE
+                        size of convolution kernel
+  --cnn_dropout CNN_DROPOUT
+                        dropout used in cnn
+
+Transformer options:
   --N N                 transformer options
   --d_model D_MODEL     transformer options
   --d_ff D_FF           transformer options
   --h H                 transformer options
-  --transformer_dropout TRANSFORMER_DROPOUT
+  --trans_dropout TRANS_DROPOUT
                         dropout used in transformer
 
 Biaffine classifier arguments:
