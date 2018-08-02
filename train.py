@@ -173,6 +173,7 @@ def train(args):
             run_epoch(args, model, corpus, train_step)
 
             # Evaluate model on validation set.
+            # TODO: replace this with a UAS and LAS eval instead of this proxy
             arc_val_acc, lab_val_acc = evaluate(args, model, corpus)
             LOSSES['val_acc'].append([arc_val_acc, lab_val_acc])
 

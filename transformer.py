@@ -158,11 +158,10 @@ class TransformerEncoder(nn.Module):
         super(TransformerEncoder, self).__init__()
         attn = MultiHeadedAttention(h, d_model)
         ff = PositionwiseFeedForward(d_model, d_ff, dropout)
+        self.d_model = d_model
         self.encoder = Encoder(EncoderLayer(d_model, attn, ff, dropout), N)
-        self.src_embed = nn.Sequential(
-                            nn.Linear(input_size, d_model),
-                            PositionalEncoding(d_model, dropout)
-                        )
+        self.projection = nn.Linear(input_size, d_model) # to get to the proper input size
+        self.positional = PositionalEncoding(d_model, dropout)
 
         self.initialize_parameters()
 
@@ -172,12 +171,16 @@ class TransformerEncoder(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform(p)
 
-    def forward(self, src, src_mask):
+    def forward(self, x, mask):
         """Take in and process masked src and target sequences."""
-        return self.encode(src, src_mask)
+        return self.encode(x, mask)
 
-    def encode(self, src, src_mask):
-        return self.encoder(self.src_embed(src), src_mask)
+    def embed(self, x):
+        x = self.projection(x) * math.sqrt(self.d_model)
+        return self.positional(x)
+
+    def encode(self, x, mask):
+        return self.encoder(self.embed(x), mask)
 
     @property
     def num_parameters(self):
@@ -185,14 +188,13 @@ class TransformerEncoder(nn.Module):
         return sum(np.prod(p.shape) for p in self.parameters() if p.requires_grad)
 
 
-
 if __name__ == '__main__':
     encoder = TransformerEncoder(d_model=512)
     embedding = nn.Embedding(100, 512)
 
-    src = Variable(torch.arange(1, 16).long().view(3, 5))
-    src_mask = (src != 0).unsqueeze(-2) # Why unsqueeze?
-    print(src)
-    print(src_mask)
-    out = encoder(embedding(src), src_mask)
+    x = Variable(torch.arange(1, 16).long().view(3, 5))
+    mask = (x != 0).unsqueeze(-2) # Why unsqueeze?
+    print(x)
+    print(mask)
+    out = encoder(embedding(x), mask)
     print(out)

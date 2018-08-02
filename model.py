@@ -7,7 +7,7 @@ from numpy import prod
 from data import PAD_INDEX
 from embedding import WordEmbedding, WordTagEmbedding
 from nn import MLP, BiAffine, RecurrentCharEmbedding, ConvolutionalCharEmbedding
-from encoder import RecurrentEncoder, ConvolutionalEncoder
+from encoder import RecurrentEncoder, SimpleConvolutionalEncoder, NoEncoder
 from transformer import TransformerEncoder
 
 class BiAffineParser(nn.Module):
@@ -42,10 +42,10 @@ class BiAffineParser(nn.Module):
         words = kwargs['words']
         if self.encoder_type == 'rnn':
             aux = (words != PAD_INDEX).long().sum(-1) # sentence_lenghts
-        elif self.encoder_type == 'cnn':
-            aux = (words != PAD_INDEX).float()
         elif self.encoder_type == 'transformer':
             aux = (words != PAD_INDEX).unsqueeze(-2) # mask
+        else:
+            aux = None
 
         x = self.embedding(*args, **kwargs)
 
@@ -86,17 +86,15 @@ class BiAffineParser(nn.Module):
 def make_model(args, word_vocab_size, tag_vocab_size, num_labels):
     """Initiliaze a the BiAffine parser according to the specs in args."""
     # Embeddings
-    # Character embeddins
     if args.use_char:
         if args.char_encoder == 'rnn':
             word_embedding = RecurrentCharEmbedding(word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
         elif args.char_encoder == 'cnn':
-            word_embedding = ConvolutionalCharEmbedding(word_vocab_size, args.filter_factor, padding_idx=PAD_INDEX)
+            word_embedding = ConvolutionalCharEmbedding(word_vocab_size, padding_idx=PAD_INDEX, filter_factor=args.filter_factor)
             args.word_emb_dim = word_embedding.output_size # CNN encoder is not so flexible
-            print('CNN character model gives word embeddings of dimension {}.'.format(args.word_emb_dim))
+            print('CNN character model produces word embeddings of dimension {}.'.format(args.word_emb_dim))
         elif args.char_encoder == 'transformer':
             raise NotImplementedError('Transformer character econder not yet implemented.')
-    # Word embeddings
     else:
         word_embedding = nn.Embedding(word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
         if args.use_glove:
@@ -120,13 +118,16 @@ def make_model(args, word_vocab_size, tag_vocab_size, num_labels):
                                    args.batch_first, args.rnn_dropout, bidirectional=True)
         encoder_dim = 2 * args.rnn_hidden
     elif args.encoder == 'cnn':
-        encoder = ConvolutionalEncoder(embedding_dim, args.cnn_hidden, args.cnn_num_layers,
+        encoder = SimpleConvolutionalEncoder(embedding_dim, args.cnn_num_layers,
                                        args.kernel_size, dropout=args.cnn_dropout)
-        encoder_dim = args.cnn_hidden
+        encoder_dim = embedding_dim
     elif args.encoder == 'transformer':
         encoder = TransformerEncoder(embedding_dim, args.N, args.d_model, args.d_ff,
                                      args.h, dropout=args.trans_dropout)
         encoder_dim = args.d_model
+    elif args.encoder == 'none':
+        encoder = NoEncoder()
+        encoder_dim = embedding_dim
 
     # Initialize the model.
     model = BiAffineParser(

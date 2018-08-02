@@ -98,7 +98,7 @@ Training arguments:
 - [x] Write predicted parses to conll file.
 - [ ] Label loss converges very fast, which seems to hurt the arc accuracy.
 - [x] A couple of full runs of the model for results.
-- [ ] Perfom some ablation experiments.
+- [ ] Perform some ablation experiments.
 - [x] Make it CUDA.
 - [x] Enable multi-gpu training
 - [x] Work on character-level embedding of words (CNN or LSTM).

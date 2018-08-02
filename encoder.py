@@ -4,7 +4,10 @@ from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from numpy import prod
 
+from nn import ResidualConnection
+
 class RecurrentEncoder(nn.Module):
+    """A simple RNN based sentence encoder."""
     def __init__(self, rnn_type, input_size, hidden_size, num_layers,
                  batch_first, dropout, bidirectional,
                  use_cuda=False, hidden_init='zeros', train_hidden_init=False):
@@ -88,30 +91,26 @@ class RecurrentEncoder(nn.Module):
         """Returns the number of trainable parameters of the model."""
         return sum(prod(p.shape) for p in self.parameters() if p.requires_grad)
 
-
-class ConvolutionalEncoder(nn.Module):
-    def __init__(self, input_size, output_size, num_conv, kernel_size, activation='ReLU', dropout=0.):
-        super(ConvolutionalEncoder, self).__init__()
+class SimpleConvolutionalEncoder(nn.Module):
+    def __init__(self, input_size, num_conv, kernel_size, activation='Tanh', dropout=0.):
+        super(SimpleConvolutionalEncoder, self).__init__()
         # Make sure kernel_size is odd.
         assert kernel_size / 2 > kernel_size // 2
         # Padding to keep shape constant
         padding = kernel_size // 2
         act_fn = getattr(nn, activation)
-        self.layers = nn.Sequential()
-        for i in range(num_conv - 1):
-            self.layers.add_module('conv_{}'.format(i),
-                                   nn.Conv1d(input_size, output_size, kernel_size, padding=padding))
-            self.layers.add_module('{}_{}'.format(activation, i),
-                                   act_fn())
-            self.layers.add_module('dropout_{}'.format(i),
-                                   nn.Dropout(p=dropout))
-            input_size = output_size
-        self.layers.add_module('conv_{}'.format(num_conv - 1),
-                               nn.Conv1d(input_size, output_size, kernel_size, padding=padding))
+        layers = nn.Sequential()
+        for i in range(num_conv):
+            conv = nn.Conv1d(input_size, input_size, kernel_size, padding=padding)
+            layers.add_module('res_{}'.format(i),
+                    ResidualConnection(conv, dropout))
+            layers.add_module('{}_{}'.format(activation, i),
+                    act_fn())
+        self.layers = layers
 
     def forward(self, x, mask):
         """Expect input of shape (batch, seq, emb)."""
-        x = mask * x
+        # x = mask * x
         x = x.transpose(1, 2) # (batch, emb, seq)
         x = self.layers(x)
         return x.transpose(1, 2) # (batch, seq, emb)
@@ -121,6 +120,32 @@ class ConvolutionalEncoder(nn.Module):
         """Returns the number of trainable parameters of the model."""
         return sum(prod(p.shape) for p in self.parameters() if p.requires_grad)
 
+
+class ConvolutionalEncoder(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(ConvolutionalEncoder, self).__init__()
+        pass
+
+    def forward(self, x, mask):
+        """Expect input of shape (batch, seq, emb)."""
+        pass
+
+    @property
+    def num_parameters(self):
+        """Returns the number of trainable parameters of the model."""
+        return sum(prod(p.shape) for p in self.parameters() if p.requires_grad)
+
+class NoEncoder(nn.Module):
+    """This encoder does nothing."""
+    def __init__(self):
+        super(NoEncoder, self).__init__()
+
+    def forward(self, x, *args, **kwargs):
+        return x
+
+    @property
+    def num_parameters(self):
+        return 0
 
 if __name__ == '__main__':
     m = ConvolutionalEncoder(10, 8, num_conv=3)

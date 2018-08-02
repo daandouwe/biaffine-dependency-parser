@@ -135,6 +135,17 @@ class RecurrentCharEmbedding(nn.Module):
         return sum(prod(p.shape) for p in self.parameters() if p.requires_grad)
 
 
+class ResidualConnection(nn.Module):
+    """A residual connection with dropout."""
+    def __init__(self, layer, dropout):
+        super(ResidualConnection, self).__init__()
+        self.layer = layer
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        "Apply residual connection to any sublayer with the same size."
+        return x + self.dropout(self.layer(x))
+
 class SimpleConvolutionalCharEmbedding(nn.Module):
     def __init__(self, nchars, output_size, padding_idx, num_conv=3, kernel_size=3, emb_dim=None,
                 hidden_size=None, activation='ReLU', dropout=0.):
@@ -149,17 +160,15 @@ class SimpleConvolutionalCharEmbedding(nn.Module):
         self.padding_idx = padding_idx
         self.embedding = nn.Embedding(nchars, emb_dim, padding_idx=padding_idx)
         input_size = emb_dim
-        self.layers = nn.Sequential()
-        for i in range(num_conv - 1):
-            self.layers.add_module('conv_{}'.format(i),
-                                   nn.Conv1d(input_size, output_size, kernel_size, padding=padding))
-            self.layers.add_module('{}_{}'.format(activation, i),
-                                   act_fn())
-            self.layers.add_module('dropout_{}'.format(i),
-                                   nn.Dropout(p=dropout))
+        layers = nn.Sequential()
+        for i in range(num_conv):
+            conv = nn.Conv1d(input_size, output_size, kernel_size, padding=padding)
+            layers.add_module('res_{}'.format(i),
+                    ResidualConnection(conv, dropout))
+            layers.add_module('{}_{}'.format(activation, i),
+                    act_fn())
             input_size = output_size
-        self.layers.add_module('conv_{}'.format(num_conv - 1),
-                               nn.Conv1d(input_size, output_size, kernel_size, padding=padding))
+        self.layers = layers
 
     def forward(self, x):
         """Expect input of shape (batch, seq, emb)."""
@@ -197,7 +206,7 @@ class HighwayNetwork(nn.Module):
 
 class ConvolutionalCharEmbedding(nn.Module):
     """Convolutional character embedding following https://arxiv.org/pdf/1508.06615.pdf."""
-    def __init__(self, nchars, output_size, padding_idx, emb_dim=15, filter_factor=25, activation='Tanh', dropout=0.):
+    def __init__(self, nchars, padding_idx, emb_dim=15, filter_factor=25, activation='Tanh', dropout=0.):
         super(ConvolutionalCharEmbedding, self).__init__()
         self.padding_idx = padding_idx
         self.embedding = nn.Embedding(nchars, emb_dim, padding_idx=padding_idx)

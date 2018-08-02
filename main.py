@@ -38,7 +38,7 @@ def main():
                         help='dropout used on embeddings')
     # Encoder
     encode = parser.add_argument_group('Encoder options')
-    encode.add_argument('--encoder', type=str, choices=['rnn', 'cnn', 'transformer'],
+    encode.add_argument('--encoder', type=str, choices=['rnn', 'cnn', 'transformer', 'none'],
                         default='rnn', help='type of sentence encoder used')
     # RNN encoder arguments
     rnn = parser.add_argument_group('RNN options')
@@ -54,8 +54,6 @@ def main():
                         help='dropout used in rnn')
     # CNN encoder arguments
     cnn = parser.add_argument_group('CNN options')
-    cnn.add_argument('--cnn_hidden', type=int, default=400,
-                        help='number of hidden units in CNN')
     cnn.add_argument('--cnn_num_layers', type=int, default=5,
                         help='number convolutions')
     cnn.add_argument('--kernel_size', type=int, default=3,
