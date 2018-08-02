@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 """Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html#model-architecture"""
+import math, copy, time
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math, copy, time
 from torch.autograd import Variable
 
 def clones(module, N):
@@ -178,6 +178,12 @@ class TransformerEncoder(nn.Module):
 
     def encode(self, src, src_mask):
         return self.encoder(self.src_embed(src), src_mask)
+
+    @property
+    def num_parameters(self):
+        """Returns the number of trainable parameters of the model."""
+        return sum(np.prod(p.shape) for p in self.parameters() if p.requires_grad)
+
 
 
 if __name__ == '__main__':

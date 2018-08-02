@@ -10,9 +10,10 @@ import matplotlib.pyplot as plt
 from model import PAD_INDEX
 from data import Corpus
 from model import make_model
+from optimizer import get_std_transformer_opt
 from util import Timer, write
 
-LOSSES = {'train_loss': [], 'train_acc': [], 'val_acc': [], 'test_acc': []}
+LOSSES = dict(train_loss=[], train_acc=[], val_acc=[], test_acc=[])
 
 ######################################################################
 # Useful functions.
@@ -36,7 +37,7 @@ def evaluate(args, model, corpus):
     """Evaluate the arc and label accuracy of the model on the development corpus."""
     # Turn on evaluation mode to disable dropout.
     model.eval()
-    dev_batches = corpus.dev.batches(32, length_ordered=True)
+    dev_batches = corpus.dev.batches(256, length_ordered=True)
     arc_acc, lab_acc = 0, 0
     for k, batch in enumerate(dev_batches, 1):
         words, tags, heads, labels = batch
@@ -67,10 +68,15 @@ class SimpleLossCompute:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        return S_arc, S_lab, loss.data[0]
+        loss_dict = dict(loss=loss.data[0], arc_loss=arc_loss.data[0], lab_loss=lab_loss.data[0])
+        return S_arc, S_lab, loss_dict
 
 class MultiGPULossCompute:
-    """A multi-gpu loss compute and train function."""
+    """A multi-gpu loss compute and train function.
+
+    Only difference with SimpleLossCompute is we need to access loss
+    through model.module.
+    """
     def __init__(self, model, optimizer, devices, output_device=None):
         self.model = model
         self.optimizer = optimizer
@@ -88,32 +94,32 @@ class MultiGPULossCompute:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        return S_arc, S_lab, loss.data[0]
+        loss_dict = dict(loss=loss.data[0], arc_loss=arc_loss.data[0], lab_loss=lab_loss.data[0])
+        return S_arc, S_lab, loss_dict
 
 def run_epoch(args, model, corpus, train_step):
     model.train()
-    n_batches = len(corpus.train.words) // args.batch_size
+    nbatches = len(corpus.train.words) // args.batch_size
     start_time = time.time()
-    # Turn on dropout.
     # Get a new set of shuffled training batches.
     train_batches = corpus.train.batches(args.batch_size, length_ordered=args.disable_length_ordered)
+    logstring = '| Step {:5d}/{:5d} | Avg loss {:3.4f} | Arc acc {:4.2f}% | Label acc {:4.2f}% | {:4.0f} tokens/sec |'
     ntokens = 0
     for step, batch in enumerate(train_batches, 1):
         words, tags, heads, labels = batch
         if args.cuda:
             words, tags, heads, labels = words.cuda(), tags.cuda(), heads.cuda(), labels.cuda()
-        S_arc, S_lab, loss = train_step(words, tags, heads, labels)
+        S_arc, S_lab, loss_dict = train_step(words, tags, heads, labels)
         ntokens += words.size(0) * words.size(1)
-        LOSSES['train_loss'].append(loss)
+        LOSSES['train_loss'].append(loss_dict['loss'])
         if step % args.print_every == 0:
             arc_train_acc = arc_accuracy(S_arc, heads)
             lab_train_acc = lab_accuracy(S_lab, heads, labels)
             LOSSES['train_acc'].append([arc_train_acc, lab_train_acc])
-            print('| Step {:5d}/{:5d} | Avg loss {:3.4f} | Arc acc {:4.2f}% | '
-                  'Label acc {:4.2f}% | {:4.0f} tokens/sec |'
-                    ''.format(step, n_batches, np.mean(LOSSES['train_loss'][-args.print_every:]),
-                    100*arc_train_acc, 100*lab_train_acc,
-                    ntokens/(time.time() - start_time)), end='\r')
+            print(logstring.format(
+                    step, nbatches, np.mean(LOSSES['train_loss'][-args.print_every:]),
+                    100*arc_train_acc, 100*lab_train_acc, ntokens/(time.time() - start_time)),
+                end='\r')
 
 ######################################################################
 # Train!
@@ -134,11 +140,16 @@ def train(args):
                 tag_vocab_size=len(corpus.dictionary.t2i),
                 num_labels=len(corpus.dictionary.l2i)
             )
-    print('Model parameters: {:,}'.format(model.num_parameters))
+    print('Embedding parameters: {:,}'.format(model.embedding.num_parameters))
+    print('Encoder parameters: {:,}'.format(model.encoder.num_parameters))
+    print('Total model parameters: {:,}'.format(model.num_parameters))
     if args.cuda:
         model.cuda()
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    if args.encoder == 'transformer':
+        optimizer = get_std_transformer_opt(args, model)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     if args.cuda:
         device_count = torch.cuda.device_count()
@@ -149,7 +160,9 @@ def train(args):
             print('Training on {} GPUs: {}.'.format(device_count, devices))
         else:
             train_step = SimpleLossCompute(model, optimizer)
-            print('Training on 1 GPU out of {} availlable.'.format(device_count))
+            print('Training on 1 device out of {} availlable.'.format(device_count))
+    else:
+        train_step = SimpleLossCompute(model, optimizer)
 
     timer = Timer()
     best_val_acc = 0.
@@ -171,7 +184,6 @@ def train(args):
 
             write(LOSSES['train_loss'], LOSSES['train_acc'], LOSSES['val_acc'])
             # End epoch with some useful info in the terminal.
-            print()
             print('-' * 89)
             print('| End of epoch {:3d} | Time {:5.2f}s | Valid accuracy {:3.2f}% |'
                     ' Best accuracy {:3.2f}% (epoch {:3d}) |'.format(epoch,

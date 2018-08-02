@@ -11,7 +11,7 @@ from data import Dictionary, Corpus, PAD_INDEX
 from predict import predict, predict_batch
 
 class CONLL:
-
+    """A CONLL dataset."""
     def __init__(self, dictionary):
         self.dictionary = dictionary
         self.words = []
@@ -27,9 +27,7 @@ class CONLL:
         self.labels.append([self.dictionary.i2l[i] for i in labels])
 
     def write(self, path='predicted.conll'):
-        """"
-        Write the data out as a conll file (Stanford style).
-        """
+        """"Write the data out as a conll file (Stanford style)."""
         with open(path, 'w') as f:
             for line in zip(self.words, self.tags, self.heads, self.labels):
                 words, tags, heads, labels = line
@@ -39,7 +37,6 @@ class CONLL:
                 print(file=f)
 
 class Parser:
-
     def __init__(self, corpus, model):
         pass
         self.model = model

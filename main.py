@@ -10,7 +10,7 @@ def main():
     parser.add_argument('mode', type=str, choices=['train', 'predict'])
     # Data
     data = parser.add_argument_group('Data')
-    data.add_argument('--data', type=str, default='../../stanford-ptb',
+    data.add_argument('--data', type=str, default='~/data/stanford-ptb/',
                         help='location of the data corpus')
     data.add_argument('--vocab', type=str, default='vocab/train',
                         help='location of the preprocessed vocabulary')
@@ -24,8 +24,12 @@ def main():
                         help='use character level word embeddings')
     embed.add_argument('--char_encoder', type=str, choices=['rnn', 'cnn', 'transformer'],
                         default='rnn', help='type of character encoder used for word embeddings')
+    embed.add_argument('--filter_factor', type=int, default=25,
+                        help='controls output size of cnn character embedding')
+    embed.add_argument('--disable_words', action='store_false',
+                        help='do not use words as input')
     embed.add_argument('--disable_tags', action='store_false',
-                        help='do not use tags as additional input')
+                        help='do not use tags as input')
     embed.add_argument('--word_emb_dim', type=int, default=300,
                         help='size of word embeddings')
     embed.add_argument('--tag_emb_dim', type=int, default=50,
@@ -37,26 +41,38 @@ def main():
     encode.add_argument('--encoder', type=str, choices=['rnn', 'cnn', 'transformer'],
                         default='rnn', help='type of sentence encoder used')
     # RNN encoder arguments
-    encode.add_argument('--rnn_type', type=str, choices=['RNN', 'GRU', 'LSTM'], default='LSTM',
+    rnn = parser.add_argument_group('RNN options')
+    rnn.add_argument('--rnn_type', type=str, choices=['RNN', 'GRU', 'LSTM'], default='LSTM',
                         help='number of hidden units in RNN')
-    encode.add_argument('--rnn_hidden', type=int, default=400,
+    rnn.add_argument('--rnn_hidden', type=int, default=400,
                         help='number of hidden units in RNN')
-    encode.add_argument('--rnn_num_layers', type=int, default=3,
+    rnn.add_argument('--rnn_num_layers', type=int, default=3,
                         help='number of layers')
-    encode.add_argument('--batch_first', type=bool, default=True,
+    rnn.add_argument('--batch_first', type=bool, default=True,
                         help='number of layers')
-    encode.add_argument('--rnn_dropout', type=float, default=0.3,
+    rnn.add_argument('--rnn_dropout', type=float, default=0.3,
                         help='dropout used in rnn')
+    # CNN encoder arguments
+    cnn = parser.add_argument_group('CNN options')
+    cnn.add_argument('--cnn_hidden', type=int, default=400,
+                        help='number of hidden units in CNN')
+    cnn.add_argument('--cnn_num_layers', type=int, default=5,
+                        help='number convolutions')
+    cnn.add_argument('--kernel_size', type=int, default=3,
+                        help='size of convolution kernel')
+    cnn.add_argument('--cnn_dropout', type=float, default=0.3,
+                        help='dropout used in cnn')
     # Transformer encoder arguments
-    encode.add_argument('--N', type=int, default=6,
+    trans = parser.add_argument_group('Transformer options')
+    trans.add_argument('--N', type=int, default=6,
                         help='transformer options')
-    encode.add_argument('--d_model', type=int, default=512,
+    trans.add_argument('--d_model', type=int, default=512,
                         help='transformer options')
-    encode.add_argument('--d_ff', type=int, default=2048,
+    trans.add_argument('--d_ff', type=int, default=2048,
                         help='transformer options')
-    encode.add_argument('--h', type=int, default=8,
+    trans.add_argument('--h', type=int, default=8,
                         help='transformer options')
-    encode.add_argument('--transformer_dropout', type=float, default=0.1,
+    trans.add_argument('--trans_dropout', type=float, default=0.1,
                         help='dropout used in transformer')
     # Biaffine transformations
     biaff = parser.add_argument_group('Biaffine classifier arguments')

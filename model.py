@@ -6,8 +6,8 @@ from numpy import prod
 
 from data import PAD_INDEX
 from embedding import WordEmbedding, WordTagEmbedding
-from nn import MLP, BiAffine, RecurrentCharEmbedding
-from encoder import RecurrentEncoder
+from nn import MLP, BiAffine, RecurrentCharEmbedding, ConvolutionalCharEmbedding
+from encoder import RecurrentEncoder, ConvolutionalEncoder
 from transformer import TransformerEncoder
 
 class BiAffineParser(nn.Module):
@@ -37,16 +37,17 @@ class BiAffineParser(nn.Module):
         # Loss criterion
         self.criterion = criterion()
 
-    def forward(self, **kwargs):
+    def forward(self, *args, **kwargs):
         """Compute the score matrices for the arcs and labels."""
-
-        x = self.embedding(**kwargs)
-
         words = kwargs['words']
-        if self.encoder_type == 'transformer':
-            aux = (words != PAD_INDEX).unsqueeze(-2) # mask
         if self.encoder_type == 'rnn':
             aux = (words != PAD_INDEX).long().sum(-1) # sentence_lenghts
+        elif self.encoder_type == 'cnn':
+            aux = (words != PAD_INDEX).float()
+        elif self.encoder_type == 'transformer':
+            aux = (words != PAD_INDEX).unsqueeze(-2) # mask
+
+        x = self.embedding(*args, **kwargs)
 
         h = self.encoder(x, aux)
 
@@ -83,38 +84,48 @@ class BiAffineParser(nn.Module):
 
 
 def make_model(args, word_vocab_size, tag_vocab_size, num_labels):
+    """Initiliaze a the BiAffine parser according to the specs in args."""
     # Embeddings
     # Character embeddins
     if args.use_char:
         if args.char_encoder == 'rnn':
             word_embedding = RecurrentCharEmbedding(word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
         elif args.char_encoder == 'cnn':
-            raise NotImplementedError('CNN character econder not yet implemented.')
+            word_embedding = ConvolutionalCharEmbedding(word_vocab_size, args.filter_factor, padding_idx=PAD_INDEX)
+            args.word_emb_dim = word_embedding.output_size # CNN encoder is not so flexible
+            print('CNN character model gives word embeddings of dimension {}.'.format(args.word_emb_dim))
         elif args.char_encoder == 'transformer':
             raise NotImplementedError('Transformer character econder not yet implemented.')
-    # Word embeddings.
+    # Word embeddings
     else:
         word_embedding = nn.Embedding(word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
         if args.use_glove:
             raise NotImplementedError('GloVe embeddings not yet implemented.')
-    # Optional tag embedding
+    # Words, tags, or both
     if args.disable_tags:
         embedding = WordEmbedding(word_embedding, args.emb_dropout)
-        encoder_input = args.word_emb_dim
+        embedding_dim = args.word_emb_dim
+    elif args.disable_words: # Experimental reasons
+        tag_embedding = nn.Embedding(tag_vocab_size, args.tag_emb_dim, padding_idx=PAD_INDEX)
+        embedding = TagEmbedding(tag_embedding, args.emb_dropout)
+        embedding_dim = args.tag_emb_dim
     else:
         tag_embedding = nn.Embedding(tag_vocab_size, args.tag_emb_dim, padding_idx=PAD_INDEX)
         embedding = WordTagEmbedding(word_embedding, tag_embedding, args.emb_dropout)
-        encoder_input = args.word_emb_dim + args.tag_emb_dim
+        embedding_dim = args.word_emb_dim + args.tag_emb_dim
 
     # Encoder
     if args.encoder == 'rnn':
-        encoder = RecurrentEncoder(args.rnn_type, encoder_input, args.rnn_hidden, args.rnn_num_layers,
+        encoder = RecurrentEncoder(args.rnn_type, embedding_dim, args.rnn_hidden, args.rnn_num_layers,
                                    args.batch_first, args.rnn_dropout, bidirectional=True)
         encoder_dim = 2 * args.rnn_hidden
     elif args.encoder == 'cnn':
-        raise NotImplementedError('CNN econder not yet implemented.')
+        encoder = ConvolutionalEncoder(embedding_dim, args.cnn_hidden, args.cnn_num_layers,
+                                       args.kernel_size, dropout=args.cnn_dropout)
+        encoder_dim = args.cnn_hidden
     elif args.encoder == 'transformer':
-        encoder = TransformerEncoder(encoder_input, args.N, args.d_model, args.d_ff, args.h, dropout=args.transformer_dropout)
+        encoder = TransformerEncoder(embedding_dim, args.N, args.d_model, args.d_ff,
+                                     args.h, dropout=args.trans_dropout)
         encoder_dim = args.d_model
 
     # Initialize the model.

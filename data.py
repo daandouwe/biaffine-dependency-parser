@@ -7,17 +7,17 @@ import torch
 from torch.autograd import Variable
 
 PAD_TOKEN = '<pad>'
-PAD_TAG = 'PAD'
+PAD_TAG   = 'PAD'
 PAD_LABEL = '_pad_'
 PAD_INDEX = 0
 
 UNK_TOKEN = '<unk>'
-UNK_TAG = 'UNK'
+UNK_TAG   = 'UNK'
 UNK_LABEL = '_unk_'
 UNK_INDEX = 1
 
 ROOT_TOKEN = '<root>'
-ROOT_TAG = 'ROOT'
+ROOT_TAG   = 'ROOT'
 ROOT_LABEL = '_root_'
 ROOT_INDEX = 2
 
@@ -26,9 +26,10 @@ def wrap(batch):
     return Variable(torch.LongTensor(batch))
 
 def pad(batch, char=False):
-    """
-    Pad a batch of irregular length indices, and return as
-    a Variable so it is ready as input for a PyTorch model.
+    """Pad a batch of irregular length indices.
+
+    Returns:
+        Variable so it is ready as input for a PyTorch model.
     """
     # If character input then we first need to pad the individual words
     # before we can pad the sentences.
@@ -125,9 +126,7 @@ class Dictionary:
                 self.add_label(label)
 
 class Data:
-    """
-    A dependency parse dataset.
-    """
+    """A dependency parse dataset."""
     def __init__(self, path, dictionary, char=False):
         self.words = []
         self.tags = []
@@ -163,8 +162,8 @@ class Data:
                     ws, ts, hs, ls, n = self.newline()
 
     def newline(self):
-        """
-        Each sentence in our data-set must start with these indices.
+        """Each sentence in our data-set must start with these indices.
+
         Note the convention: the root has itelf as head.
         """
         if self.char:
@@ -192,9 +191,7 @@ class Data:
         self.lengths = [self.lengths[i] for i in new_order]
 
     def batches(self, batch_size, shuffle=True, length_ordered=False):
-        """
-        An iterator over batches.
-        """
+        """An iterator over batches."""
         n = len(self.words)
         batch_order = list(range(0, n, batch_size))
         if shuffle:
@@ -210,18 +207,16 @@ class Data:
             yield words, tags, heads, labels
 
 class Corpus:
-    """
-    A corpus of three datasets (train, development, and test) and a dictionary.
-    """
-    def __init__(self, vocab_path="vocab/train", data_path="stanford-ptb", char=False):
+    """A corpus of a dictionary and three datasets (train, development, and test)."""
+    def __init__(self, vocab_path="vocab/train", data_path="~/data/stanford-ptb/", char=False):
         self.dictionary = Dictionary(vocab_path, char=char)
-        self.train = Data(os.path.join(data_path, "train-stanford-raw.conll"), self.dictionary, char=char)
-        self.dev = Data(os.path.join(data_path, "dev-stanford-raw.conll"), self.dictionary, char=char)
-        self.test = Data(os.path.join(data_path, "test-stanford-raw.conll"), self.dictionary, char=char)
+        self.train  = Data(os.path.join(data_path, "train-stanford-raw.conll"), self.dictionary, char=char)
+        self.dev    = Data(os.path.join(data_path, "dev-stanford-raw.conll"), self.dictionary, char=char)
+        self.test   = Data(os.path.join(data_path, "test-stanford-raw.conll"), self.dictionary, char=char)
 
 if __name__ == "__main__":
     # Example usage:
-    corpus = Corpus(data_path="../../stanford-ptb", char=True)
+    corpus = Corpus(data_path="~/data/stanford-ptb", char=True)
     batches = corpus.train.batches(16)
     for _ in range(10):
         words, tags, heads, labels = next(batches)

@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from numpy import prod
 
 class RecurrentEncoder(nn.Module):
     def __init__(self, rnn_type, input_size, hidden_size, num_layers,
@@ -81,3 +82,47 @@ class RecurrentEncoder(nn.Module):
         # undo_sort_idx = Variable(torch.LongTensor(undo_sort_idx))
         # out = out[undo_sort_idx]
         return out
+
+    @property
+    def num_parameters(self):
+        """Returns the number of trainable parameters of the model."""
+        return sum(prod(p.shape) for p in self.parameters() if p.requires_grad)
+
+
+class ConvolutionalEncoder(nn.Module):
+    def __init__(self, input_size, output_size, num_conv, kernel_size, activation='ReLU', dropout=0.):
+        super(ConvolutionalEncoder, self).__init__()
+        # Make sure kernel_size is odd.
+        assert kernel_size / 2 > kernel_size // 2
+        # Padding to keep shape constant
+        padding = kernel_size // 2
+        act_fn = getattr(nn, activation)
+        self.layers = nn.Sequential()
+        for i in range(num_conv - 1):
+            self.layers.add_module('conv_{}'.format(i),
+                                   nn.Conv1d(input_size, output_size, kernel_size, padding=padding))
+            self.layers.add_module('{}_{}'.format(activation, i),
+                                   act_fn())
+            self.layers.add_module('dropout_{}'.format(i),
+                                   nn.Dropout(p=dropout))
+            input_size = output_size
+        self.layers.add_module('conv_{}'.format(num_conv - 1),
+                               nn.Conv1d(input_size, output_size, kernel_size, padding=padding))
+
+    def forward(self, x, mask):
+        """Expect input of shape (batch, seq, emb)."""
+        x = mask * x
+        x = x.transpose(1, 2) # (batch, emb, seq)
+        x = self.layers(x)
+        return x.transpose(1, 2) # (batch, seq, emb)
+
+    @property
+    def num_parameters(self):
+        """Returns the number of trainable parameters of the model."""
+        return sum(prod(p.shape) for p in self.parameters() if p.requires_grad)
+
+
+if __name__ == '__main__':
+    m = ConvolutionalEncoder(10, 8, num_conv=3)
+    x = Variable(torch.randn(5, 6, 10)) # (batch, seq, emb)
+    print(m(x))
