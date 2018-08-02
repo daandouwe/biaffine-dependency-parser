@@ -5,9 +5,9 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from numpy import prod
 
 from data import PAD_INDEX
-from embedding import WordEmbedding, WordTagEmbedding
-from nn import MLP, BiAffine, RecurrentCharEmbedding, ConvolutionalCharEmbedding
-from encoder import RecurrentEncoder, SimpleConvolutionalEncoder, NoEncoder
+from embedding import WordEmbedding, WordTagEmbedding, RecurrentCharEmbedding, ConvolutionalCharEmbedding
+from nn import MLP, BiAffine
+from encoder import RecurrentEncoder, ConvolutionalEncoder, NoEncoder
 from transformer import TransformerEncoder
 
 class BiAffineParser(nn.Module):
@@ -118,7 +118,7 @@ def make_model(args, word_vocab_size, tag_vocab_size, num_labels):
                                    args.batch_first, args.rnn_dropout, bidirectional=True)
         encoder_dim = 2 * args.rnn_hidden
     elif args.encoder == 'cnn':
-        encoder = SimpleConvolutionalEncoder(embedding_dim, args.cnn_num_layers,
+        encoder = ConvolutionalEncoder(embedding_dim, args.cnn_num_layers,
                                        args.kernel_size, dropout=args.cnn_dropout)
         encoder_dim = embedding_dim
     elif args.encoder == 'transformer':

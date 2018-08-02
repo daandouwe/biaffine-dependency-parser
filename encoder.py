@@ -1,3 +1,5 @@
+import copy
+
 import torch
 from torch import nn
 from torch.autograd import Variable
@@ -49,41 +51,8 @@ class RecurrentEncoder(nn.Module):
     def forward(self, x, lengths):
         batch = x.size(0) if self.batch_first else x.size(1)
         # RNN computation.
-
         h0 = self.get_hidden(batch)
         out, _ = self.rnn(x, h0)
-        # batch = x.size(0) if self.batch_first else x.size(1)
-        #
-        # # Sort x by word length.
-        # sorted_lengths, sort_idx = lengths.sort(0, descending=True)
-        # sort_idx = sort_idx.cuda() if self.cuda else sort_idx
-        # print(sort_idx.shape)
-        # sort_idx = sort_idx.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, x.size(-1))
-        # print(sort_idx.shape)
-        # quit()
-        # x = x[sort_idx]
-        #
-        # # Embed chars and pack for rnn input.
-        # sorted_lengths_list = list(sorted_lengths.data)
-        # x = pack_padded_sequence(x, sorted_lengths_list, batch_first=self.batch_first)
-        #
-        # # RNN computation.
-        # h0 = self.get_hidden(batch)
-        # out, _ = self.rnn(x, h0)
-        #
-        # # Unpack and keep only final embedding.
-        # out, _ = pad_packed_sequence(out, batch_first=self.batch_first)
-        # print(out.shape)
-        # sorted_lengths = sorted_lengths - 1
-        # sorted_lengths = sorted_lengths.unsqueeze(-1).unsqueeze(-1).repeat(out.size(0), 1, out.size(-1))
-        # sorted_lengths = sorted_lengths.cuda() if self.cuda else sorted_lengths
-        # out = torch.gather(out, 1, sorted_lengths).squeeze(1)
-        #
-        # # Put everything back into the original order.
-        # pairs = list(zip(sort_idx.data, range(sort_idx.size(0))))
-        # undo_sort_idx = [pair[1] for pair in sorted(pairs, key=lambda t: t[0])]
-        # undo_sort_idx = Variable(torch.LongTensor(undo_sort_idx))
-        # out = out[undo_sort_idx]
         return out
 
     @property
@@ -91,19 +60,24 @@ class RecurrentEncoder(nn.Module):
         """Returns the number of trainable parameters of the model."""
         return sum(prod(p.shape) for p in self.parameters() if p.requires_grad)
 
-class SimpleConvolutionalEncoder(nn.Module):
+
+class ConvolutionalEncoder(nn.Module):
+    """Stacked convolutions with residual connection.
+
+    Similar to the architectures used in https://arxiv.org/pdf/1705.03122.pdf and
+    https://arxiv.org/pdf/1611.02344.pdf.
+    """
     def __init__(self, input_size, num_conv, kernel_size, activation='Tanh', dropout=0.):
-        super(SimpleConvolutionalEncoder, self).__init__()
-        # Make sure kernel_size is odd.
-        assert kernel_size / 2 > kernel_size // 2
-        # Padding to keep shape constant
-        padding = kernel_size // 2
+        super(ConvolutionalEncoder, self).__init__()
+        assert kernel_size / 2 > kernel_size // 2, 'only odd kernel sizes supported'
+        padding = kernel_size // 2 # Padding to keep size constant
         act_fn = getattr(nn, activation)
         layers = nn.Sequential()
+        c = copy.deepcopy
+        conv = nn.Conv1d(input_size, input_size, kernel_size, padding=padding)
         for i in range(num_conv):
-            conv = nn.Conv1d(input_size, input_size, kernel_size, padding=padding)
             layers.add_module('res_{}'.format(i),
-                    ResidualConnection(conv, dropout))
+                    ResidualConnection(c(conv), dropout))
             layers.add_module('{}_{}'.format(activation, i),
                     act_fn())
         self.layers = layers
@@ -120,20 +94,6 @@ class SimpleConvolutionalEncoder(nn.Module):
         """Returns the number of trainable parameters of the model."""
         return sum(prod(p.shape) for p in self.parameters() if p.requires_grad)
 
-
-class ConvolutionalEncoder(nn.Module):
-    def __init__(self, input_size, output_size):
-        super(ConvolutionalEncoder, self).__init__()
-        pass
-
-    def forward(self, x, mask):
-        """Expect input of shape (batch, seq, emb)."""
-        pass
-
-    @property
-    def num_parameters(self):
-        """Returns the number of trainable parameters of the model."""
-        return sum(prod(p.shape) for p in self.parameters() if p.requires_grad)
 
 class NoEncoder(nn.Module):
     """This encoder does nothing."""

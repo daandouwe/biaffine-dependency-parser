@@ -23,7 +23,7 @@ def main():
     embed.add_argument('--use_char', action='store_true',
                         help='use character level word embeddings')
     embed.add_argument('--char_encoder', type=str, choices=['rnn', 'cnn', 'transformer'],
-                        default='rnn', help='type of character encoder used for word embeddings')
+                        default='cnn', help='type of character encoder used for word embeddings')
     embed.add_argument('--filter_factor', type=int, default=25,
                         help='controls output size of cnn character embedding')
     embed.add_argument('--disable_words', action='store_false',
@@ -54,9 +54,9 @@ def main():
                         help='dropout used in rnn')
     # CNN encoder arguments
     cnn = parser.add_argument_group('CNN options')
-    cnn.add_argument('--cnn_num_layers', type=int, default=5,
+    cnn.add_argument('--cnn_num_layers', type=int, default=6,
                         help='number convolutions')
-    cnn.add_argument('--kernel_size', type=int, default=3,
+    cnn.add_argument('--kernel_size', type=int, default=5,
                         help='size of convolution kernel')
     cnn.add_argument('--cnn_dropout', type=float, default=0.3,
                         help='dropout used in cnn')
