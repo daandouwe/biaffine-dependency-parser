@@ -118,7 +118,7 @@ class SimpleConvolutionalCharEmbedding(nn.Module):
         emb_dim = output_size if emb_dim is None else emb_dim
         hidden_size = output_size if hidden_size is None else hidden_size
         # Make sure kernel_size is odd.
-        assert kernel_size / 2 > kernel_size // 2
+        assert kernel_size % 2 == 1
         # Padding to keep shape constant
         padding = kernel_size // 2
         act_fn = getattr(nn, activation)
@@ -159,12 +159,14 @@ class RecurrentCharEmbedding(nn.Module):
     """Simple RNN based encoder for character-level word embeddings.
 
     Based on: https://github.com/bastings/parser/blob/extended_parser/parser/nn.py"""
-    def __init__(self, nchars, output_size, padding_idx, hidden_size=None, emb_dim=None, dropout=0.33, bi=True):
+    def __init__(self, nchars, output_size, padding_idx,
+                 hidden_size=None, emb_dim=None, dropout=0.33, bi=True):
         super(RecurrentCharEmbedding, self).__init__()
         # Default values for encoder.
         emb_dim = output_size if emb_dim is None else emb_dim
         hidden_size = output_size if hidden_size is None else hidden_size
 
+        self.padding_idx = padding_idx
         self.embedding = nn.Embedding(nchars, emb_dim)
         self.dropout = nn.Dropout(p=dropout)
 
@@ -184,7 +186,7 @@ class RecurrentCharEmbedding(nn.Module):
         x = x.view(-1, word_len) # (batch_size * sent_len, word_len)
 
         # Sort x by word length.
-        lengths = (x != PAD_INDEX).long().sum(-1)
+        lengths = (x != self.padding_idx).long().sum(-1)
         sorted_lengths, sort_idx = lengths.sort(0, descending=True)
         sort_idx = sort_idx.cuda() if cuda else sort_idx
         x = x[sort_idx]

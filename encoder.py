@@ -69,7 +69,7 @@ class ConvolutionalEncoder(nn.Module):
     """
     def __init__(self, input_size, num_conv, kernel_size, activation='Tanh', dropout=0.):
         super(ConvolutionalEncoder, self).__init__()
-        assert kernel_size / 2 > kernel_size // 2, 'only odd kernel sizes supported'
+        assert kernel_size % 2 == 1, 'only odd kernel sizes supported'
         padding = kernel_size // 2 # Padding to keep size constant
         act_fn = getattr(nn, activation)
         layers = nn.Sequential()
