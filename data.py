@@ -209,6 +209,7 @@ class Data:
 class Corpus:
     """A corpus of a dictionary and three datasets (train, development, and test)."""
     def __init__(self, vocab_path="vocab/train", data_path="~/data/stanford-ptb/", char=False):
+        data_path = os.path.expanduser(data_path) if data_path.startswith('~') else data_path
         self.dictionary = Dictionary(vocab_path, char=char)
         self.train  = Data(os.path.join(data_path, "train-stanford-raw.conll"), self.dictionary, char=char)
         self.dev    = Data(os.path.join(data_path, "dev-stanford-raw.conll"), self.dictionary, char=char)
