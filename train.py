@@ -13,17 +13,17 @@ from model import make_model
 from optimizer import get_std_transformer_opt
 from util import Timer, write
 
+
 LOSSES = dict(train_loss=[], train_acc=[], val_acc=[], test_acc=[])
 
-######################################################################
-# Useful functions.
-######################################################################
+
 def arc_accuracy(S_arc, heads, eps=1e-10):
     """Accuracy of the arc predictions based on gready head prediction."""
     _, pred = S_arc.max(dim=-2)
     mask = (heads != PAD_INDEX).float()
     accuracy = torch.sum((pred == heads).float() * mask, dim=-1) / (torch.sum(mask, dim=-1) + eps)
     return torch.mean(accuracy).data[0]
+
 
 def lab_accuracy(S_lab, heads, labels, eps=1e-10):
     """Accuracy of label predictions on the gold arcs."""
@@ -32,6 +32,7 @@ def lab_accuracy(S_lab, heads, labels, eps=1e-10):
     mask = (heads != PAD_INDEX).float()
     accuracy = torch.sum((pred == labels).float() * mask, dim=-1) / (torch.sum(mask, dim=-1) + eps)
     return torch.mean(accuracy).data[0]
+
 
 def evaluate(args, model, corpus):
     """Evaluate the arc and label accuracy of the model on the development corpus."""
@@ -71,6 +72,7 @@ class SimpleLossCompute:
         loss_dict = dict(loss=loss.data[0], arc_loss=arc_loss.data[0], lab_loss=lab_loss.data[0])
         return S_arc, S_lab, loss_dict
 
+
 class MultiGPULossCompute:
     """A multi-gpu loss compute and train function.
 
@@ -97,13 +99,13 @@ class MultiGPULossCompute:
         loss_dict = dict(loss=loss.data[0], arc_loss=arc_loss.data[0], lab_loss=lab_loss.data[0])
         return S_arc, S_lab, loss_dict
 
+
 def run_epoch(args, model, corpus, train_step):
     model.train()
     nbatches = len(corpus.train.words) // args.batch_size
     start_time = time.time()
     # Get a new set of shuffled training batches.
     train_batches = corpus.train.batches(args.batch_size, length_ordered=args.disable_length_ordered)
-    logstring = '| Step {:5d}/{:5d} | Avg loss {:3.4f} | Arc acc {:4.2f}% | Label acc {:4.2f}% | {:4.0f} tokens/sec |'
     ntokens = 0
     for step, batch in enumerate(train_batches, 1):
         words, tags, heads, labels = batch
@@ -116,14 +118,18 @@ def run_epoch(args, model, corpus, train_step):
             arc_train_acc = arc_accuracy(S_arc, heads)
             lab_train_acc = lab_accuracy(S_lab, heads, labels)
             LOSSES['train_acc'].append([arc_train_acc, lab_train_acc])
-            print(logstring.format(
-                    step, nbatches, np.mean(LOSSES['train_loss'][-args.print_every:]),
-                    100*arc_train_acc, 100*lab_train_acc, ntokens/(time.time() - start_time)),
-                end='\r')
+            print(
+                '| Step {:5d}/{:5d} ({:.0f}%)| Avg loss {:3.4f} | Arc acc {:4.2f}% | Label acc {:4.2f}% | {:4.0f} tokens/sec |'.format(
+                    step,
+                    nbatches,
+                    100*step/nbatches,
+                    np.mean(LOSSES['train_loss'][-args.print_every:]),
+                    100*arc_train_acc,
+                    100*lab_train_acc,
+                    ntokens/(time.time() - start_time)),
+            )
 
-######################################################################
-# Train!
-######################################################################
+
 def train(args):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -195,10 +201,12 @@ def train(args):
         print('-' * 89)
         print('Exiting from training early')
 
-    ######################################################################
-    # Wrap-up.
-    ######################################################################
     write(LOSSES['train_loss'], LOSSES['train_acc'], LOSSES['val_acc'])
     arc_val_acc, lab_val_acc = evaluate(args, model, corpus)
     if arc_val_acc > best_val_acc:
         torch.save(model, args.save)
+        best_val_acc = arc_val_acc
+        best_epoch = epoch
+
+    print('| End of training | Best validation accuracy {:3.2f} (epoch {}) |'.format(
+        best_val_acc, best_epoch))
