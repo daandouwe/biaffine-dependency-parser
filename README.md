@@ -102,6 +102,12 @@ Training arguments:
   --save SAVE           path to save the final model
   ```
 
+## Requirements
+```
+python>=3.6.0
+torch>=0.3.0
+numpy
+```
 
 ## TODO
 - [x] Add MST algorithm for decoding.
