@@ -208,16 +208,16 @@ class Data:
 
 class Corpus:
     """A corpus of a dictionary and three datasets (train, development, and test)."""
-    def __init__(self, vocab_path="vocab/train", data_path="~/data/stanford-ptb/", char=False):
+    def __init__(self, vocab_path="vocab/train", data_path="~/data/ptb-stanford/", char=False):
         data_path = os.path.expanduser(data_path)
         self.dictionary = Dictionary(vocab_path, char=char)
-        self.train = Data(os.path.join(data_path, "train-stanford-raw.conll"), self.dictionary, char=char)
-        self.dev = Data(os.path.join(data_path, "dev-stanford-raw.conll"), self.dictionary, char=char)
-        self.test = Data(os.path.join(data_path, "test-stanford-raw.conll"), self.dictionary, char=char)
+        self.train = Data(os.path.join(data_path, "train.conll"), self.dictionary, char=char)
+        self.dev = Data(os.path.join(data_path, "dev.conll"), self.dictionary, char=char)
+        self.test = Data(os.path.join(data_path, "test.conll"), self.dictionary, char=char)
 
 if __name__ == "__main__":
     # Example usage:
-    corpus = Corpus(data_path="~/data/stanford-ptb", char=True)
+    corpus = Corpus(data_path="~/data/ptb-stanford", char=True)
     batches = corpus.train.batches(16)
     for _ in range(10):
         words, tags, heads, labels = next(batches)
