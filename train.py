@@ -119,7 +119,8 @@ def run_epoch(args, model, corpus, train_step):
             lab_train_acc = lab_accuracy(S_lab, heads, labels)
             LOSSES['train_acc'].append([arc_train_acc, lab_train_acc])
             print(
-                '| Step {:5d}/{:5d} ({:.0f}%)| Avg loss {:3.4f} | Arc acc {:4.2f}% | Label acc {:4.2f}% | {:4.0f} tokens/sec |'.format(
+                '| Step {:5d}/{:5d} ({:.0f}%)| Avg loss {:3.4f} | Arc acc {:4.2f}% '
+                '| Label acc {:4.2f}% | {:4.0f} tokens/sec |'.format(
                     step,
                     nbatches,
                     100*step/nbatches,
@@ -139,7 +140,7 @@ def train(args):
     print('Using cuda: {}'.format(args.cuda))
 
     # Initialize the data, model, and optimizer.
-    corpus = Corpus(data_path=args.data, vocab_path=args.vocab, char=args.use_char)
+    corpus = Corpus(data_path=args.data, vocab_path=args.vocab, char=args.use_chars)
     model = make_model(
                 args,
                 word_vocab_size=len(corpus.dictionary.w2i),
@@ -192,9 +193,16 @@ def train(args):
             write(LOSSES['train_loss'], LOSSES['train_acc'], LOSSES['val_acc'])
             # End epoch with some useful info in the terminal.
             print('-' * 89)
-            print('| End of epoch {:3d} | Time {:5.2f}s | Valid accuracy {:3.2f}% |'
-                    ' Best accuracy {:3.2f}% (epoch {:3d}) |'.format(epoch,
-                    (timer.elapsed()), 100*arc_val_acc, 100*best_val_acc, best_epoch))
+            print(
+                '| End of epoch {:3d}/{} | Time {:5.2f}s | Valid accuracy {:3.2f}% |'
+                ' Best accuracy {:3.2f}% (epoch {:3d}) |'.format(
+                    epoch,
+                    args.epochs,
+                    timer.elapsed(),
+                    100*arc_val_acc,
+                    100*best_val_acc,
+                    best_epoch)
+            )
             print('-' * 89)
     except KeyboardInterrupt:
         print()
@@ -208,5 +216,7 @@ def train(args):
         best_val_acc = arc_val_acc
         best_epoch = epoch
 
+    print('=' * 89)
     print('| End of training | Best validation accuracy {:3.2f} (epoch {}) |'.format(
-        best_val_acc, best_epoch))
+        100*best_val_acc, best_epoch))
+    print('=' * 89)

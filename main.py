@@ -23,7 +23,7 @@ def main():
     embed = parser.add_argument_group('Embedding options')
     embed.add_argument('--use-glove', action='store_true',
                         help='use pretrained glove embeddings')
-    embed.add_argument('--use-char', action='store_true',
+    embed.add_argument('--use-chars', action='store_true',
                         help='use character level word embeddings')
     embed.add_argument('--char-encoder', type=str, choices=['rnn', 'cnn', 'transformer'],
                         default='cnn', help='type of character encoder used for word embeddings')
@@ -102,7 +102,7 @@ def main():
     training.add_argument('--seed', type=int, default=42,
                         help='random seed')
     training.add_argument('--disable-cuda', action='store_true',
-                        help='disable CUDA')
+                        help='disable cuda')
     training.add_argument('--print-every', type=int, default=100,
                         help='report interval')
     training.add_argument('--plot-every', type=int, default=100,

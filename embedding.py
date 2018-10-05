@@ -4,15 +4,17 @@ from numpy import prod
 
 from nn import ResidualConnection, HighwayNetwork
 
+
 class WordEmbedding(nn.Module):
-    def __init__(self, word_embedding, dropout):
+    """Embed words."""
+    def __init__(self, embedding, dropout):
         super(WordEmbedding, self).__init__()
-        self.word_embedding = word_embedding
+        self.embedding = embedding
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, *args, **kwargs):
         words = kwargs['words']
-        x = self.word_embedding(words)
+        x = self.embedding(words)
         return self.dropout(x)
 
     @property
@@ -22,14 +24,15 @@ class WordEmbedding(nn.Module):
 
 
 class TagEmbedding(nn.Module):
-    def __init__(self, word_embedding, dropout):
+    """Embed tags."""
+    def __init__(self, embedding, dropout):
         super(TagEmbedding, self).__init__()
-        self.word_embedding = word_embedding
+        self.embedding = embedding
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, *args, **kwargs):
         tags = kwargs['tags']
-        x = self.word_embedding(tags)
+        x = self.embedding(tags)
         return self.dropout(x)
 
     @property
@@ -39,6 +42,7 @@ class TagEmbedding(nn.Module):
 
 
 class WordTagEmbedding(nn.Module):
+    """Embeds words and tags and concatenates them."""
     def __init__(self, word_embedding, tag_embedding, dropout):
         super(WordTagEmbedding, self).__init__()
         self.word_embedding = word_embedding
@@ -158,7 +162,9 @@ class SimpleConvolutionalCharEmbedding(nn.Module):
 class RecurrentCharEmbedding(nn.Module):
     """Simple RNN based encoder for character-level word embeddings.
 
-    Based on: https://github.com/bastings/parser/blob/extended_parser/parser/nn.py"""
+    Based on:
+        https://github.com/bastings/parser/blob/extended_parser/parser/nn.py
+    """
     def __init__(self, nchars, output_size, padding_idx,
                  hidden_size=None, emb_dim=None, dropout=0.33, bi=True):
         super(RecurrentCharEmbedding, self).__init__()

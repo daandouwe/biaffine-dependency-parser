@@ -10,8 +10,9 @@ from nn import MLP, BiAffine
 from encoder import RecurrentEncoder, ConvolutionalEncoder, NoEncoder
 from transformer import TransformerEncoder
 
-class BiAffineParser(nn.Module):
 
+class BiAffineParser(nn.Module):
+    """Biaffine Dependency Parser."""
     def __init__(self, embedding, encoder, encoder_type,
                  mlp_input, mlp_arc_hidden,
                  mlp_lab_hidden, mlp_dropout,
@@ -62,19 +63,19 @@ class BiAffineParser(nn.Module):
 
     def arc_loss(self, S_arc, heads):
         """Compute the loss for the arc predictions."""
-        S_arc = S_arc.transpose(-1, -2)                     # [batch, sent_len, sent_len]
-        S_arc = S_arc.contiguous().view(-1, S_arc.size(-1)) # [batch*sent_len, sent_len]
-        heads = heads.view(-1)                              # [batch*sent_len]
+        S_arc = S_arc.transpose(-1, -2)                      # [batch, sent_len, sent_len]
+        S_arc = S_arc.contiguous().view(-1, S_arc.size(-1))  # [batch*sent_len, sent_len]
+        heads = heads.view(-1)                               # [batch*sent_len]
         return self.criterion(S_arc, heads)
 
     def lab_loss(self, S_lab, heads, labels):
         """Compute the loss for the label predictions on the gold arcs (heads)."""
-        heads = heads.unsqueeze(1).unsqueeze(2)             # [batch, 1, 1, sent_len]
-        heads = heads.expand(-1, S_lab.size(1), -1, -1)     # [batch, n_labels, 1, sent_len]
-        S_lab = torch.gather(S_lab, 2, heads).squeeze(2)    # [batch, n_labels, sent_len]
-        S_lab = S_lab.transpose(-1, -2)                     # [batch, sent_len, n_labels]
-        S_lab = S_lab.contiguous().view(-1, S_lab.size(-1)) # [batch*sent_len, n_labels]
-        labels = labels.view(-1)                            # [batch*sent_len]
+        heads = heads.unsqueeze(1).unsqueeze(2)              # [batch, 1, 1, sent_len]
+        heads = heads.expand(-1, S_lab.size(1), -1, -1)      # [batch, n_labels, 1, sent_len]
+        S_lab = torch.gather(S_lab, 2, heads).squeeze(2)     # [batch, n_labels, sent_len]
+        S_lab = S_lab.transpose(-1, -2)                      # [batch, sent_len, n_labels]
+        S_lab = S_lab.contiguous().view(-1, S_lab.size(-1))  # [batch*sent_len, n_labels]
+        labels = labels.view(-1)                             # [batch*sent_len]
         return self.criterion(S_lab, labels)
 
     @property
@@ -86,11 +87,13 @@ class BiAffineParser(nn.Module):
 def make_model(args, word_vocab_size, tag_vocab_size, num_labels):
     """Initiliaze a the BiAffine parser according to the specs in args."""
     # Embeddings
-    if args.use_char:
+    if args.use_chars:
         if args.char_encoder == 'rnn':
-            word_embedding = RecurrentCharEmbedding(word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
+            word_embedding = RecurrentCharEmbedding(
+                word_vocab_size, args.word_emb_dim, padding_idx=PAD_INDEX)
         elif args.char_encoder == 'cnn':
-            word_embedding = ConvolutionalCharEmbedding(word_vocab_size, padding_idx=PAD_INDEX, filter_factor=args.filter_factor)
+            word_embedding = ConvolutionalCharEmbedding(
+                word_vocab_size, padding_idx=PAD_INDEX, filter_factor=args.filter_factor)
             args.word_emb_dim = word_embedding.output_size # CNN encoder is not so flexible
             print('CNN character model produces word embeddings of dimension {}.'.format(args.word_emb_dim))
         elif args.char_encoder == 'transformer':
@@ -114,16 +117,17 @@ def make_model(args, word_vocab_size, tag_vocab_size, num_labels):
 
     # Encoder
     if args.encoder == 'rnn':
-        encoder = RecurrentEncoder(args.rnn_type, embedding_dim, args.rnn_hidden, args.rnn_num_layers,
-                                   args.batch_first, args.rnn_dropout, bidirectional=True)
+        encoder = RecurrentEncoder(
+            args.rnn_type, embedding_dim, args.rnn_hidden, args.rnn_num_layers,
+            args.batch_first, args.rnn_dropout, bidirectional=True)
         encoder_dim = 2 * args.rnn_hidden
     elif args.encoder == 'cnn':
-        encoder = ConvolutionalEncoder(embedding_dim, args.cnn_num_layers,
-                                       args.kernel_size, dropout=args.cnn_dropout)
+        encoder = ConvolutionalEncoder(
+            embedding_dim, args.cnn_num_layers, args.kernel_size, dropout=args.cnn_dropout)
         encoder_dim = embedding_dim
     elif args.encoder == 'transformer':
-        encoder = TransformerEncoder(embedding_dim, args.N, args.d_model, args.d_ff,
-                                     args.h, dropout=args.trans_dropout)
+        encoder = TransformerEncoder(
+            embedding_dim, args.N, args.d_model, args.d_ff, args.h, dropout=args.trans_dropout)
         encoder_dim = args.d_model
     elif args.encoder == 'none':
         encoder = NoEncoder()
@@ -131,11 +135,16 @@ def make_model(args, word_vocab_size, tag_vocab_size, num_labels):
 
     # Initialize the model.
     model = BiAffineParser(
-                embedding, encoder, args.encoder,
-                encoder_dim, args.mlp_arc_hidden,
-                args.mlp_lab_hidden, args.mlp_dropout,
-                num_labels, nn.CrossEntropyLoss
-            )
+        embedding,
+        encoder,
+        args.encoder,
+        encoder_dim,
+        args.mlp_arc_hidden,
+        args.mlp_lab_hidden,
+        args.mlp_dropout,
+        num_labels,
+        nn.CrossEntropyLoss
+    )
 
     # Initialize parameters with Glorot.
     for p in model.parameters():

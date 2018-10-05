@@ -8,6 +8,7 @@ from numpy import prod
 
 from nn import ResidualConnection
 
+
 class RecurrentEncoder(nn.Module):
     """A simple RNN based sentence encoder."""
     def __init__(self, rnn_type, input_size, hidden_size, num_layers,
@@ -27,23 +28,22 @@ class RecurrentEncoder(nn.Module):
                                             dropout=dropout,
                                             bidirectional=bidirectional)
 
-        assert hidden_init in ('zeros', 'randn') # availlable initialization methods.
+        assert hidden_init in ('zeros', 'randn')  # availlable initialization methods.
         self.hidden_init = getattr(torch, hidden_init)
-        self.train_hidden_init = train_hidden_init # TODO: make initial hidden trainable.
-
+        self.train_hidden_init = train_hidden_init  # TODO: make initial hidden trainable.
         self.cuda = use_cuda
 
     def get_hidden(self, batch):
         args = self.num_layers * self.num_directions, batch, self.hidden_size
         use_cuda = torch.cuda.is_available()
         if self.rnn_type == 'LSTM':
-            h0 = Variable(self.hidden_init(*args)) # (num_layers * rections, batch, hidden_size)
-            c0 = Variable(self.hidden_init(*args)) # (num_layers * rections, batch, hidden_size)
+            h0 = Variable(self.hidden_init(*args))  # (num_layers * directions, batch, hidden_size)
+            c0 = Variable(self.hidden_init(*args))  # (num_layers * directions, batch, hidden_size)
             if use_cuda:
                 h0, c0 = h0.cuda(), c0.cuda()
             return h0, c0
         else:
-            h0 = Variable(self.hidden_init(*args)) # (num_layers * rections, batch, hidden_size)
+            h0 = Variable(self.hidden_init(*args))  # (num_layers * directions, batch, hidden_size)
             if use_cuda:
                 h0 = h0.cuda()
             return h0
@@ -85,9 +85,9 @@ class ConvolutionalEncoder(nn.Module):
     def forward(self, x, mask):
         """Expect input of shape (batch, seq, emb)."""
         # x = mask * x
-        x = x.transpose(1, 2) # (batch, emb, seq)
+        x = x.transpose(1, 2)  # (batch, emb, seq)
         x = self.layers(x)
-        return x.transpose(1, 2) # (batch, seq, emb)
+        return x.transpose(1, 2)  # (batch, seq, emb)
 
     @property
     def num_parameters(self):
@@ -97,7 +97,7 @@ class ConvolutionalEncoder(nn.Module):
 
 class NoEncoder(nn.Module):
     """This encoder does nothing."""
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super(NoEncoder, self).__init__()
 
     def forward(self, x, *args, **kwargs):
@@ -107,7 +107,8 @@ class NoEncoder(nn.Module):
     def num_parameters(self):
         return 0
 
+
 if __name__ == '__main__':
     m = ConvolutionalEncoder(10, 8, num_conv=3)
-    x = Variable(torch.randn(5, 6, 10)) # (batch, seq, emb)
+    x = Variable(torch.randn(5, 6, 10))  # (batch, seq, emb)
     print(m(x))

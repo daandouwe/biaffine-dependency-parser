@@ -1,14 +1,15 @@
+#!/usr/bin/env python
+import argparse
 import os
 
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
 
 from data import Dictionary, Corpus, PAD_INDEX
 from predict import predict, predict_batch
+
 
 class CONLL:
     """A CONLL dataset."""
@@ -36,30 +37,32 @@ class CONLL:
                     print(i, w, '_', t, t, '_', h, l, '_', '_', sep='\t', file=f)
                 print(file=f)
 
-class Parser:
+
+class Decoder:
     def __init__(self, corpus, model):
-        pass
         self.model = model
         self.corpus = corpus
 
     def batch_eval(self, batch_size=128):
-        conll = CONLL(corpus.dictionary)
+        conll = CONLL(self.corpus.dictionary)
         batches = self.corpus.dev.batches(batch_size, shuffle=False)
         self.model.eval()
         for i, batch in enumerate(batches):
             print('Batch:', i, end='\r')
             words, tags, heads, labels = batch
             # Predict score matrices for the batch.
-            S_arc, S_lab = self.model(words, tags)
+            S_arc, S_lab = self.model(words=words, tags=tags)
             for i in range(words.size(0)):
                 # Find the sentence length.
                 n = (words[i] != PAD_INDEX).int().sum().data.numpy()[0]
                 # Predict for the selected parts that are the sentence.
-                heads_pred, labels_pred = predict_batch(S_arc[i, :n, :n],
-                                                        S_lab[i, :, :n, :n],
-                                                        tags[i, :n])
-                conll.add(words[i].data.numpy(), tags[i].data.numpy(),
-                            heads_pred, labels_pred)
+                heads_pred, labels_pred = predict_batch(
+                    S_arc[i, :n, :n],
+                    S_lab[i, :, :n, :n],
+                    tags[i, :n]
+                )
+                conll.add(
+                    words[i].data.numpy(), tags[i].data.numpy(), heads_pred, labels_pred)
         return conll
 
     def eval(self, corpus):
@@ -75,23 +78,31 @@ class Parser:
             conll.add(words, tags, heads_pred, labels_pred)
         return conll
 
-if __name__ == '__main__':
 
-    data_path = '../../stanford-ptb'
-    vocab_path = 'vocab/train'
-    model_path = 'models/trained/model.pt'
+def main(args):
+    data_path = os.path.expanduser(args.data_path)
+    gold_path = os.path.expanduser(args.gold_path)
 
-    gold_path = '../../stanford-ptb/dev-stanford-raw.conll'
-    predict_path = 'predicted.conll'
-    result_path = 'result.txt'
+    corpus = Corpus(args.vocab_path, data_path)
+    model = torch.load(args.model_path)
 
-    corpus = Corpus(vocab_path, data_path)
-    model = torch.load(model_path)
-
-    parser = Parser(corpus, model)
+    parser = Decoder(corpus, model)
     conll = parser.batch_eval()
 
     # Write the conll as text.
-    conll.write(predict_path)
+    conll.write(args.predict_path)
     # Evaluate the predicted conll.
-    os.system('perl eval.pl -g {0} -s {1} > {2}'.format(gold_path, predict_path, result_path))
+    os.system('perl eval.pl -g {0} -s {1} > {2}'.format(gold_path, args.predict_path, args.result_path))
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--data_path', default='~/data/ptb-stanford')
+    parser.add_argument('--vocab_path', default='vocab/train')
+    parser.add_argument('--model_path', default='models/trained/model.pt')
+    parser.add_argument('--gold_path', default='~/data/ptb-stanford/dev.conll')
+    parser.add_argument('--predict_path', default='predicted.conll')
+    parser.add_argument('--result_path', default='result.txt')
+    args = parser.parse_args()
+    main(args)

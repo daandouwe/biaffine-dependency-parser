@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from data import Dictionary, Corpus, PAD_INDEX
 from mst import mst
 
+
 def plot(S_arc, heads):
     fig, ax = plt.subplots()
     # Make a 0/1 gold adjacency matrix.
@@ -28,11 +29,9 @@ def plot(S_arc, heads):
     plt.cla()
     plt.clf()
 
+
 def predict(model, words, tags):
-    """
-    :param words: a python list with word indices.
-    :param tags: a python list with tag indices.
-    """
+    assert type(words) == type(tags)
     if type(words) == type(tags) == list:
         # Convert the lists into input for the PyTorch model.
         words = Variable(torch.LongTensor([words]))
@@ -54,6 +53,7 @@ def predict(model, words, tags):
     _, labels = selected.max(dim=0)
     labels = labels.data.numpy()
     return heads, labels
+
 
 def predict_batch(S_arc, S_lab, tags):
     # Predict heads
