@@ -116,11 +116,11 @@ numpy
 - [x] Enable multi-GPU training
 - [x] Work on character-level embedding of words (CNN or LSTM).
 - [x] Implement RNN options: RNN, GRU, (RAN?)
-- [x] Different encoder: [Transformer](http://nlp.seas.harvard.edu/2018/04/03/attention.html).
 - [x] Character level word embeddings: CNN
 - [x] Character level word embeddings: RNN
-- [ ] Label loss converges very fast, which seems to hurt the arc accuracy.
+- [x] Different encoder: [Transformer](http://nlp.seas.harvard.edu/2018/04/03/attention.html).
+- [x] Different encoder: CNN (again see [spaCy's parser](https://spacy.io/api/)).
+- [ ] Label loss converges very fast, which maybe hurts the arc accuracy?
 - [ ] Perform some ablation experiments.
 - [ ] Disable input POS-tags at prediction time but train with them using mutli-task learning. See [spaCy's parser](https://spacy.io/api/) and these papers that it is based on: [Stack-propagation: Improved Representation Learning for Syntax](https://arxiv.org/pdf/1603.06598.pdf) and [Deep multi-task learning with low level tasks supervised at lower layers](http://anthology.aclweb.org/P16-2038).
-- [ ] Different encoder: CNN (again see [spaCy's parser](https://spacy.io/api/)).
 - [ ] Load pretrained GloVe embeddings.
