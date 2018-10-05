@@ -1,17 +1,17 @@
 # Biaffine dependency-parser
 A PyTorch implementation of the neural dependency parser described in [Deep Biaffine Attention for Neural Dependency Parsing](https://arxiv.org/abs/1611.01734).
 
-# Data
+## Data
 You can train on the Penn Treebank, converted to [Stanford Dependencies](https://nlp.stanford.edu/software/stanford-dependencies.shtml). We assume you have the PTB in standard train/dev/test splits in conll-format, stored somewhere in one directory, and that they are named `train.conll`, `dev.conll`, `test.conll`.
 
-# Usage
+## Usage
 Train a default model with the following arguments:
 ```bash
 ./main.py train --data your/ptb/conll/dir
 ```
 Training can be exited at any moment with Control-C and the current model will be evaluated on the development-set.
 
-## Arguments
+### Arguments
 The following options are available:
 ```
 usage: main.py [...]
@@ -103,7 +103,7 @@ Training arguments:
   ```
 
 
-# TODO
+## TODO
 - [x] Add MST algorithm for decoding.
 - [x] Write predicted parses to conll file.
 - [x] A couple of full runs of the model for results.
