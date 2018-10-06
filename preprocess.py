@@ -1,6 +1,11 @@
-import numpy as np
+#!/usr/bin/env python
+import argparse
+import os
 from collections import Counter
 import unicodedata
+
+import numpy as np
+
 
 def is_number(s):
     s = s.replace(',', '') # 10,000 -> 10000
@@ -12,14 +17,13 @@ def is_number(s):
         return True
     except ValueError:
         pass
-
     try:
         unicodedata.numeric(s)
         return True
     except (TypeError, ValueError):
         pass
-
     return False
+
 
 def process_conll(in_path, out_path, lower=True, clean=True, p=0.1):
     word_counts = Counter()
@@ -35,21 +39,21 @@ def process_conll(in_path, out_path, lower=True, clean=True, p=0.1):
                 word_counts.update([word])
                 tag_counts.update([tag])
                 label_counts.update([label])
-    with open(out_path + ".words.txt", 'w') as f:
+    with open(out_path + '.words.txt', 'w') as f:
         for word, count in word_counts.most_common():
             processed = word
             if count == 1:
                 if is_number(word) and clean:
-                    processed = "<num>"
+                    processed = '<num>'
                 elif np.random.random() < p:
-                    processed = "<unk>"
-            print("{} {} {}".format(word, processed, count), file=f)
-    with open(out_path + ".tags.txt", 'w') as f:
+                    processed = '<unk>'
+            print('{} {} {}'.format(word, processed, count), file=f)
+    with open(out_path + '.tags.txt', 'w') as f:
         for tag, count in tag_counts.most_common():
-            print("{} {}".format(tag, count), file=f)
-    with open(out_path + ".labels.txt", 'w') as f:
+            print('{} {}'.format(tag, count), file=f)
+    with open(out_path + '.labels.txt', 'w') as f:
         for label, count in label_counts.most_common():
-            print("{} {}".format(label, count), file=f)
+            print('{} {}'.format(label, count), file=f)
 
 
 def compare_vocabulary(train_path, dev_path, test_path):
@@ -75,24 +79,39 @@ def compare_vocabulary(train_path, dev_path, test_path):
     ntokens_test = sum(test_vocab.values())
     unseen_words = list(set(dev_vocab.keys()) - (set(train_vocab.keys()) & set(dev_vocab.keys())))
     num_unseen_tokens = sum([dev_vocab[w] for w in unseen_words])
-    with open("vocab/data-statistics.csv", 'w') as g:
-        print("dataset,nwords,ntokens", file=g)
-        print("train,{},{}".format(nwords_train, ntokens_train), file=g)
-        print("dev,{},{}".format(nwords_dev, ntokens_dev), file=g)
-        print("test,{},{}".format(nwords_test, ntokens_test), file=g)
-        print("unseen,{},{}".format(len(unseen_words), num_unseen_tokens), file=g)
+    with open('vocab/data-statistics.csv', 'w') as g:
+        print('dataset,nwords,ntokens', file=g)
+        print('train,{},{}'.format(nwords_train, ntokens_train), file=g)
+        print('dev,{},{}'.format(nwords_dev, ntokens_dev), file=g)
+        print('test,{},{}'.format(nwords_test, ntokens_test), file=g)
+        print('unseen,{},{}'.format(len(unseen_words), num_unseen_tokens), file=g)
     with open('vocab/unseen.txt', 'w') as f:
         for word in unseen_words:
-            print("{} {}".format(word, dev_vocab[word]), file=f)
+            print('{} {}'.format(word, dev_vocab[word]), file=f)
 
 
-if __name__ == "__main__":
-    # Example usage:
-    train_path = "../../stanford-ptb/train-stanford-raw.conll"
-    dev_path = "../../stanford-ptb/dev-stanford-raw.conll"
-    test_path = "../../stanford-ptb/test-stanford-raw.conll"
+def main(args):
+    data = os.path.expanduser(args.data)
+    train_conll_path = os.path.join(data, 'train.conll')
+    dev_conll_path = os.path.join(data, 'dev.conll')
+    test_conll_path = os.path.join(data, 'test.conll')
 
-    process_conll(train_path, "vocab/train", p=0.5, clean=False)
-    process_conll(dev_path, "vocab/dev", p=0.0)
-    process_conll(test_path, "vocab/test", p=0.0)
-    compare_vocabulary("vocab/train.words.txt", "vocab/dev.words.txt", "vocab/test.words.txt")
+    train_vocab_path = os.path.join(args.out, 'train')
+    dev_vocab_path = os.path.join(args.out, 'dev')
+    test_vocab_path = os.path.join(args.out, 'test')
+
+    process_conll(train_conll_path, train_vocab_path, p=0.5, clean=False)
+    process_conll(dev_conll_path, dev_vocab_path, p=0.0)
+    process_conll(test_conll_path, test_vocab_path, p=0.0)
+
+    compare_vocabulary(
+        train_vocab_path + '.words.txt', dev_vocab_path + '.words.txt', test_vocab_path + '.words.txt')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data', default='~/data/ptb-stanford')
+    parser.add_argument('--out', default='vocab')
+    args = parser.parse_args()
+
+    main(args)

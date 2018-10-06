@@ -11,7 +11,7 @@ from model import PAD_INDEX
 from data import Corpus
 from model import make_model
 from optimizer import get_std_transformer_opt
-from util import Timer, write
+from util import Timer, write_losses
 
 
 LOSSES = dict(train_loss=[], train_acc=[], val_acc=[], test_acc=[])
@@ -186,11 +186,11 @@ def train(args):
 
             # Save model if it is the best so far.
             if arc_val_acc > best_val_acc:
-                torch.save(model, args.save)
+                torch.save(model, args.checkpoints)
                 best_val_acc = arc_val_acc
                 best_epoch = epoch
 
-            write(LOSSES['train_loss'], LOSSES['train_acc'], LOSSES['val_acc'])
+            write_losses(LOSSES['train_loss'], LOSSES['train_acc'], LOSSES['val_acc'], args.logdir)
             # End epoch with some useful info in the terminal.
             print('-' * 89)
             print(
@@ -209,10 +209,10 @@ def train(args):
         print('-' * 89)
         print('Exiting from training early')
 
-    write(LOSSES['train_loss'], LOSSES['train_acc'], LOSSES['val_acc'])
+    write_losses(LOSSES['train_loss'], LOSSES['train_acc'], LOSSES['val_acc'], args.logdir)
     arc_val_acc, lab_val_acc = evaluate(args, model, corpus)
     if arc_val_acc > best_val_acc:
-        torch.save(model, args.save)
+        torch.save(model, args.checkpoints)
         best_val_acc = arc_val_acc
         best_epoch = epoch
 

@@ -5,8 +5,15 @@ A PyTorch implementation of the neural dependency parser described in [Deep Biaf
 You can train on the Penn Treebank, converted to [Stanford Dependencies](https://nlp.stanford.edu/software/stanford-dependencies.shtml). We assume you have the PTB in standard train/dev/test splits in conll-format, stored somewhere in one directory, and that they are named `train.conll`, `dev.conll`, `test.conll`.
 
 ## Usage
-Train a default model with the following arguments:
+First, extract a vocabulary:
 ```bash
+mkdir vocab
+./preprocess.py --data your/ptb/conll/dir --out vocab
+```
+
+Then, train a default model with the following arguments:
+```bash
+mkdir log checkpoints
 ./main.py train --data your/ptb/conll/dir
 ```
 Training can be exited at any moment with Control-C and the current model will be evaluated on the development-set.
@@ -14,7 +21,7 @@ Training can be exited at any moment with Control-C and the current model will b
 ### Arguments
 The following options are available:
 ```
-usage: main.py [...]
+usage: main.py {train,predict} [...]
 
 Biaffine graph-based dependency parser
 
@@ -33,7 +40,7 @@ Data:
 
 Embedding options:
   --use-glove           use pretrained glove embeddings
-  --use-char            use character level word embeddings
+  --use-chars           use character level word embeddings
   --char-encoder {rnn,cnn,transformer}
                         type of character encoder used for word embeddings
   --filter-factor FILTER_FACTOR
@@ -53,9 +60,9 @@ Encoder options:
 
 RNN options:
   --rnn-type {RNN,GRU,LSTM}
-                        number of hidden units in RNN
+                        type of rnn
   --rnn-hidden RNN_HIDDEN
-                        number of hidden units in RNN
+                        number of hidden units in rnn
   --rnn-num-layers RNN_NUM_LAYERS
                         number of layers
   --batch-first BATCH_FIRST
@@ -94,12 +101,14 @@ Training arguments:
   --batch-size BATCH_SIZE
                         batch size
   --seed SEED           random seed
-  --disable-cuda        disable CUDA
+  --disable-cuda        disable cuda
   --print-every PRINT_EVERY
                         report interval
   --plot-every PLOT_EVERY
                         plot interval
-  --save SAVE           path to save the final model
+  --logdir LOGDIR       directory to log losses
+  --checkpoints CHECKPOINTS
+                        path to save the final model
   ```
 
 ## Requirements

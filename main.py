@@ -48,7 +48,7 @@ def main():
     # RNN encoder arguments
     rnn = parser.add_argument_group('RNN options')
     rnn.add_argument('--rnn-type', type=str, choices=['RNN', 'GRU', 'LSTM'], default='LSTM',
-                        help='number of hidden units in rnn')
+                        help='type of rnn')
     rnn.add_argument('--rnn-hidden', type=int, default=400,
                         help='number of hidden units in rnn')
     rnn.add_argument('--rnn-num-layers', type=int, default=3,
@@ -107,7 +107,9 @@ def main():
                         help='report interval')
     training.add_argument('--plot-every', type=int, default=100,
                         help='plot interval')
-    training.add_argument('--save', type=str,  default='models/model.pt',
+    training.add_argument('--logdir', type=str,  default='log',
+                        help='directory to log losses')
+    training.add_argument('--checkpoints', type=str,  default='checkpoints/model.pt',
                         help='path to save the final model')
     args = parser.parse_args()
 

@@ -80,10 +80,10 @@ class Decoder:
 
 
 def main(args):
-    data_path = os.path.expanduser(args.data_path)
+    data_dir = os.path.expanduser(args.data_dir)
     gold_path = os.path.expanduser(args.gold_path)
 
-    corpus = Corpus(args.vocab_path, data_path)
+    corpus = Corpus(args.vocab_path, data_dir)
     model = torch.load(args.model_path)
 
     parser = Decoder(corpus, model)
@@ -98,11 +98,11 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--data_path', default='~/data/ptb-stanford')
-    parser.add_argument('--vocab_path', default='vocab/train')
-    parser.add_argument('--model_path', default='models/trained/model.pt')
-    parser.add_argument('--gold_path', default='~/data/ptb-stanford/dev.conll')
-    parser.add_argument('--predict_path', default='predicted.conll')
-    parser.add_argument('--result_path', default='result.txt')
+    parser.add_argument('--data-dir', default='~/data/ptb-stanford')
+    parser.add_argument('--vocab-path', default='vocab/train')
+    parser.add_argument('--model-path', default='models/trained/model.pt')
+    parser.add_argument('--gold-path', default='~/data/ptb-stanford/dev.conll')
+    parser.add_argument('--predict-path', default='predicted.conll')
+    parser.add_argument('--result-path', default='result.txt')
     args = parser.parse_args()
     main(args)
