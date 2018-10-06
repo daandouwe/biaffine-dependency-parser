@@ -1,6 +1,8 @@
-"""Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html"""
-
+"""
+Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html.
+"""
 import torch
+
 
 class NoamOpt:
     """Optim wrapper that implements rate."""
@@ -32,6 +34,7 @@ class NoamOpt:
         return self.factor * \
             (self.model_size ** (-0.5) *
             min(step ** (-0.5), step * self.warmup ** (-1.5)))
+
 
 def get_std_transformer_opt(args, model):
     return NoamOpt(args.d_model, 2, 4000,

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-"""Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html#model-architecture"""
+"""
+Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html#model-architecture.
+"""
 import math, copy, time
 
 import numpy as np
@@ -8,9 +10,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
+
 def clones(module, N):
     """Produce N identical layers."""
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
+
 
 def attention(query, key, value, mask=None, dropout=None):
     """Compute 'Scaled Dot Product Attention'"""
@@ -24,14 +28,6 @@ def attention(query, key, value, mask=None, dropout=None):
         p_attn = dropout(p_attn)
     return torch.matmul(p_attn, value), p_attn
 
-# class Embeddings(nn.Module):
-#     def __init__(self, d_model, vocab):
-#         super(Embeddings, self).__init__()
-#         self.lut = nn.Embedding(vocab, d_model)
-#         self.d_model = d_model
-#
-#     def forward(self, x):
-#         return self.lut(x) * math.sqrt(self.d_model)
 
 class Encoder(nn.Module):
     """Core encoder is a stack of N layers"""
@@ -46,6 +42,7 @@ class Encoder(nn.Module):
             x = layer(x, mask)
         return self.norm(x)
 
+
 class LayerNorm(nn.Module):
     """Construct a layernorm module (See citation for details)."""
     def __init__(self, features, eps=1e-6):
@@ -58,6 +55,7 @@ class LayerNorm(nn.Module):
         mean = x.mean(-1, keepdim=True)
         std = x.std(-1, keepdim=True)
         return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
+
 
 class SublayerConnection(nn.Module):
     """A residual connection followed by a layer norm.
@@ -73,6 +71,7 @@ class SublayerConnection(nn.Module):
         "Apply residual connection to any sublayer with the same size."
         return x + self.dropout(sublayer(self.norm(x)))
 
+
 class EncoderLayer(nn.Module):
     """Encoder is made up of self-attn and feed forward (defined below)"""
     def __init__(self, size, self_attn, feed_forward, dropout):
@@ -86,6 +85,7 @@ class EncoderLayer(nn.Module):
         """Follow Figure 1 (left) for connections."""
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
         return self.sublayer[1](x, self.feed_forward)
+
 
 class MultiHeadedAttention(nn.Module):
     def __init__(self, h, d_model, dropout=0.1):
@@ -120,6 +120,7 @@ class MultiHeadedAttention(nn.Module):
              .view(nbatches, -1, self.h * self.d_k)
         return self.linears[-1](x)
 
+
 class PositionwiseFeedForward(nn.Module):
     """Implements FFN equation."""
     def __init__(self, d_model, d_ff, dropout=0.1):
@@ -130,6 +131,7 @@ class PositionwiseFeedForward(nn.Module):
 
     def forward(self, x):
         return self.w_2(self.dropout(F.relu(self.w_1(x))))
+
 
 class PositionalEncoding(nn.Module):
     """Implement the PE function."""
@@ -151,6 +153,7 @@ class PositionalEncoding(nn.Module):
         x = x + Variable(self.pe[:, :x.size(1)],
                          requires_grad=False)
         return self.dropout(x)
+
 
 class TransformerEncoder(nn.Module):
     """A Transformer encoder."""
